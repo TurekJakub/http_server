@@ -11,6 +11,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <ostream>
 #include <print>
 #include <string>
 
@@ -19,7 +20,7 @@
 #include "asio/error_code.hpp"
 #include "asio/ssl/verify_mode.hpp"
 #include "asio/system_error.hpp"
-#include "parser.h"
+#include "http.h"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 
@@ -33,12 +34,12 @@ void save_buffer_to_file(const vector<char>& buffer, const string& filename) {
         return;
     }
     output_file.write(buffer.data(), buffer.size());
-    std::cout << "Successfully saved " << buffer.size() << " bytes to " << filename << std::endl;
+    std::cout << std::endl << "Successfully saved " << buffer.size() << " bytes to " << filename << std::endl;
 }
 
 int main() {
-  const string host = "fleet.coprosys.cz"; // "www.archlinux.org";
-  const string target = "/tile/8/137/89.png";
+  const string host = "httpbin.org"; //"fleet.coprosys.cz"; // "www.archlinux.org";
+  const string target = "/stream-bytes/100"; //"/tile/8/137/90.png";
   const std::string port = "443";
 
   try {
@@ -47,7 +48,7 @@ int main() {
     ssl::context ssl_context(ssl::context::tls_client);
     // Using system trusted certs does not reliably on all platforms,
     // so for purposes of this simple demo add root CA cert manually
-    ssl_context.load_verify_file("../src/resources/archlinux-org.pem");
+    ssl_context.load_verify_file("../src/resources/amazon.pem");
     ssl_context.set_verify_mode(ssl::verify_peer);
 
     ip::tcp::resolver resolver(io_context);
@@ -94,12 +95,14 @@ int main() {
       return 1;
     }
 
-    println("Response:\nStatus: {}\nHeaders:\n", (int) r.value().status);
-    for (auto&& h : r.value().headers) {
-        println("{} : {}", h.first, h.second);
+    println("\nResponse:\nStatus: {}\nHeaders:", (int) r.value().status);
+    
+    for (auto&& h : r.value().headers.get_all()) {
+      println("{} : {}", h.first, h.second);
     }
+  
 
-    save_buffer_to_file(r.value().body, "/home/jakub/Dokumenty/turekja5/project/build/test_tile.png");
+    save_buffer_to_file(r.value().body, "/home/jakub/Dokumenty/turekja5/project/build/test_tile.bin");
     
 
     string response = string(buffers_begin(buffer.data()), buffers_end(buffer.data()));

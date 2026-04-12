@@ -125,8 +125,10 @@ add_dependencies(OpenSSL_Crypto openssl)
 
 add_executable(http_server 
     http_server/main.cpp
-    http_server/parser.h
-    http_server/parser.cpp  
+    http_server/http.h
+    http_server/http.cpp  
+    http_server/string_utils.h
+    http_server/string_utils.cpp   
 )
 
 add_dependencies(http_server openssl asio)
