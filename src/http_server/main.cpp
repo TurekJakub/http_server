@@ -9,6 +9,8 @@
 */
 
 #include <format>
+#include <fstream>
+#include <iostream>
 #include <print>
 #include <string>
 
@@ -17,15 +19,26 @@
 #include "asio/error_code.hpp"
 #include "asio/ssl/verify_mode.hpp"
 #include "asio/system_error.hpp"
+#include "parser.h"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 
 using namespace std;
 using namespace asio;
 
+void save_buffer_to_file(const vector<char>& buffer, const string& filename) {
+    ofstream output_file(filename, ios::binary);
+    if (!output_file.is_open()) {
+        cerr << "Error: Could not open file for writing: " << filename << endl;
+        return;
+    }
+    output_file.write(buffer.data(), buffer.size());
+    std::cout << "Successfully saved " << buffer.size() << " bytes to " << filename << std::endl;
+}
+
 int main() {
-  const string host = "www.archlinux.org";
-  const string target = "/";
+  const string host = "fleet.coprosys.cz"; // "www.archlinux.org";
+  const string target = "/tile/8/137/89.png";
   const std::string port = "443";
 
   try {
@@ -72,8 +85,25 @@ int main() {
       }
     }
 
+    
+    HttpParser p;
+    std::istream asio_stream(&buffer);
+    auto r = p.parse_response(asio_stream);
+    if(!r.has_value()){
+      println("{}", r.error());
+      return 1;
+    }
+
+    println("Response:\nStatus: {}\nHeaders:\n", (int) r.value().status);
+    for (auto&& h : r.value().headers) {
+        println("{} : {}", h.first, h.second);
+    }
+
+    save_buffer_to_file(r.value().body, "/home/jakub/Dokumenty/turekja5/project/build/test_tile.png");
+    
+
     string response = string(buffers_begin(buffer.data()), buffers_end(buffer.data()));
-    print("Server response:\n\n{}\n", response);
+    //print("Server response:\n\n{}\n", response);
   } catch (exception &err) {
     print("Error: {}\n", err.what());
     return 1;

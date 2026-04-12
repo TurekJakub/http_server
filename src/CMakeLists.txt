@@ -123,7 +123,11 @@ set_property(TARGET OpenSSL_Crypto PROPERTY IMPORTED_LOCATION ${OPEN_SSL_SOURCE_
 add_dependencies(OpenSSL_Crypto openssl)
 
 
-add_executable(http_server http_server/main.cpp)
+add_executable(http_server 
+    http_server/main.cpp
+    http_server/parser.h
+    http_server/parser.cpp  
+)
 
 add_dependencies(http_server openssl asio)
 
