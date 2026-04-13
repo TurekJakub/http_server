@@ -8,19 +8,37 @@
 #include <ranges>
 #include <string>
 #include <sys/types.h>
+#include <utility>
+#include <variant>
 #include <vector>
 
-enum HttpMethod { GET, POST, PUT, DELETE, PATCH };
+#define unwrap(result) if(!result) {return unexpected(result.error());}
+
+// enum HttpMethod { GET, POST, PUT, DELETE, PATCH };
+
+struct GET {};
+struct POST {};
+struct PUT {};
+struct DELETE {};
+struct PATCH {};
+
+typedef std::variant<GET, POST, PUT, DELETE, PATCH, std::string> HttpMethod;
+
+constexpr std::array<std::pair<std::string, HttpMethod>, 5> method_map = {
+    {{"GET", GET{}}, {"POST", POST{}}, {"PUT", PUT{}}, {"DELETE", DELETE{}}, {"PATCH", PATCH{}}}};
+
+HttpMethod str_to_method(std::string method_str);
 
 typedef std::vector<char> HttpBody;
 typedef std::map<std::string, std::string> HttpHeader;
 
 class HttpHeaders {
-  public:
-  void set (std::string header, std::string value);
+public:
+  void set(std::string header, std::string value);
   std::optional<std::string> get(std::string header) const;
   std::ranges::subrange<HttpHeader::const_iterator> get_all();
-  private:
+
+private:
   std::map<std::string, std::string> headers;
 };
 
@@ -34,13 +52,27 @@ public:
 private:
 };
 
+class HttpRequest {
+public:
+  HttpRequest(HttpMethod method, HttpHeaders headers, HttpBody body, std::string url)
+      : method(method), headers(headers), body(body), requested_url(url) {};
+  HttpMethod method;
+  HttpHeaders headers;
+  HttpBody body;
+  std::string requested_url;
+
+private:
+};
+
 class HttpParser {
 public:
   std::expected<HttpResponse, std::string> parse_response(std::istream &input);
+  std::expected<HttpRequest, std::string> parse_request(std::istream &input);
+
 private:
   std::expected<HttpHeaders, std::string> parse_headers(std::istream &input);
-  std::expected<HttpBody,std::string> parse_chunked_body(std::istream &input);
-  std::expected<HttpBody,std::string> parse_body(std::istream &input, const HttpHeaders& headers);
+  std::expected<HttpBody, std::string> parse_chunked_body(std::istream &input);
+  std::expected<HttpBody, std::string> parse_body(std::istream &input, const HttpHeaders &headers);
 };
 
 #endif

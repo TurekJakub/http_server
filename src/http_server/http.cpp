@@ -26,17 +26,44 @@ expected<HttpResponse, std::string> HttpParser::parse_response(std::istream &inp
   unsigned int status_code = stoi(tokens[1]);
 
   auto parse_result = parse_headers(input);
-  if (!parse_result) {
-    return unexpected(parse_result.error());
-  }
+
+  unwrap(parse_result) 
+
   auto headers = parse_result.value();
 
   auto body_result = parse_body(input, headers);
-  if (!body_result) {
-    return unexpected(body_result.error());
+
+  unwrap(body_result) 
+  
+  return HttpResponse(headers, body_result.value(), status_code);
+}
+
+expected<HttpRequest, string> HttpParser::parse_request(istream &input) {
+  string header_line;
+  getline(input, header_line);
+  if (input.fail()) {
+    return unexpected("Failed to parese http respones - first respones line missing");
   }
 
-  return HttpResponse(headers, body_result.value(), status_code);
+  auto tokens = split(header_line, " ");
+  if (tokens.size() != 3) {
+    return unexpected("malformed request format, cannot determine method, requested url and http version");
+  }
+
+  HttpMethod method = str_to_method(tokens[0]);
+  string requested_url = tokens[1];
+
+  auto headers_parse_result = parse_headers(input);
+
+  unwrap(headers_parse_result)
+
+  HttpHeaders headers = headers_parse_result.value();
+
+  auto parse_body_result = parse_body(input, headers);
+
+  unwrap(parse_body_result) 
+
+  return HttpRequest{method, headers, parse_body_result.value(), requested_url};
 }
 
 expected<HttpHeaders, string> HttpParser::parse_headers(istream &input) {
@@ -104,7 +131,7 @@ expected<HttpBody, string> HttpParser::parse_body(istream &input, const HttpHead
     size_t content_length = 0;
 
     if (from_chars(ctl_str.data(), ctl_str.data() + ctl_str.size(), content_length, 10).ec != errc()) {
-      return unexpected("failed to parse http response -invalid content-length header, value: " + ctl_str);
+      return unexpected("failed to parse http response - invalid content-length header, value: " + ctl_str);
     }
 
     HttpBody body(content_length);
@@ -116,7 +143,7 @@ expected<HttpBody, string> HttpParser::parse_body(istream &input, const HttpHead
   } else if (encoding_header && encoding_header.value() == "chunked") {
     return parse_chunked_body(input);
   }
-  return unexpected("Invalid response format no content-length or transfer-encoding header");
+  return HttpBody(0);
 }
 
 void HttpHeaders::set(string header, string value) { headers.insert(make_pair(header, value)); }
@@ -129,4 +156,13 @@ optional<string> HttpHeaders::get(string header) const {
     return nullopt;
   }
   return optional(it->second);
+}
+
+HttpMethod str_to_method(string method_str) {
+  for (auto &&method : method_map) {
+    if (method.first == method_str) {
+      return method.second;
+    }
+  }
+  return method_str;
 }
