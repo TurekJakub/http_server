@@ -166,3 +166,7 @@ HttpMethod str_to_method(string method_str) {
   }
   return method_str;
 }
+
+string HttpResponse::serialize() {
+  return "";
+}

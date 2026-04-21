@@ -23,6 +23,7 @@
 #include "asio/ssl/verify_mode.hpp"
 #include "asio/system_error.hpp"
 #include "http.h"
+#include "server.h"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 
@@ -150,6 +151,12 @@ void test_parse() {
   println("Body: {}", string(res.value().body.begin(), res.value().body.end()));
 }
 
-int main() {
-  test_parse();
+int main() { 
+  asio::io_context io_context;
+
+  HttpServer s(io_context, 8080, {});
+  s.start();
+
+  io_context.run();
+
 }

@@ -44,7 +44,9 @@ private:
 
 class HttpResponse {
 public:
+  HttpResponse(){};
   HttpResponse(HttpHeaders headers, HttpBody body, unsigned short status) : headers(headers), body(body), status(status) {}
+  std::string serialize();
   HttpHeaders headers;
   HttpBody body;
   unsigned short status;

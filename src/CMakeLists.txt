@@ -129,6 +129,8 @@ add_executable(http_server
     http_server/http.cpp  
     http_server/string_utils.h
     http_server/string_utils.cpp   
+    http_server/server.h    
+    http_server/server.cpp    
 )
 
 add_dependencies(http_server openssl asio)
