@@ -14,9 +14,7 @@ using namespace asio::ip;
 using namespace asio;
 using namespace std;
 
-Connection::Connection(tcp::socket socket, Router &router) : socket(std::move(socket)), router(router) {
- // endpoint = socket.remote_endpoint();
-}
+Connection::Connection(tcp::socket socket, Router &router) : socket(std::move(socket)), router(router) {}
 
 void Connection::read() {
   auto self(shared_from_this());
@@ -25,7 +23,7 @@ void Connection::read() {
   socket.async_read_some(dest, [this, self](const error_code &ec, size_t n) {
     if (ec) {
       if (ec != error::eof) {
-        cerr << format("Recieving data failed, err: {}", ec.message());
+        cerr << format("Receiving data failed, err: {}", ec.message());
       }
       return;
     }
@@ -55,11 +53,13 @@ void Connection::read() {
 
 void Connection::start() {
   try {
-    // **Safely get the endpoint here**
     endpoint = socket.remote_endpoint();
-    read();
   } catch (const asio::system_error &e) {
+    cerr << format("Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
+    return;
   }
+
+  read();
 }
 
 void Connection::write(string message, bool keepAlive) {
@@ -87,7 +87,7 @@ void HttpServer::start() {
 void HttpServer::accept_connection() {
   acceptor.async_accept([this](const asio::error_code &ec, asio::ip::tcp::socket socket) {
     if (ec) {
-      cerr << format("Failed to estabilish connection, error: {}", ec.message());
+      cerr << format("Failed to establish connection, error: {}", ec.message());
 
     } else {
 

@@ -19,7 +19,7 @@ expected<HttpResponse, std::string> HttpParser::parse_response(std::istream &inp
   string header_line;
   getline(input, header_line);
   if (input.fail()) {
-    return unexpected("Failed to parese http respones - first respones line missing");
+    return unexpected("Failed to parse http respones - first respones line missing");
   }
 
   auto tokens = split(header_line, " ");
@@ -27,22 +27,22 @@ expected<HttpResponse, std::string> HttpParser::parse_response(std::istream &inp
 
   auto parse_result = parse_headers(input);
 
-  unwrap(parse_result) 
+  unwrap(parse_result)
 
-  auto headers = parse_result.value();
+      auto headers = parse_result.value();
 
   auto body_result = parse_body(input, headers);
 
-  unwrap(body_result) 
-  
-  return HttpResponse(headers, body_result.value(), status_code);
+  unwrap(body_result)
+
+      return HttpResponse(headers, body_result.value(), status_code);
 }
 
 expected<HttpRequest, string> HttpParser::parse_request(istream &input) {
   string header_line;
   getline(input, header_line);
   if (input.fail()) {
-    return unexpected("Failed to parese http respones - first respones line missing");
+    return unexpected("Failed to parse http respones - first respones line missing");
   }
 
   auto tokens = split(header_line, " ");
@@ -57,13 +57,13 @@ expected<HttpRequest, string> HttpParser::parse_request(istream &input) {
 
   unwrap(headers_parse_result)
 
-  HttpHeaders headers = headers_parse_result.value();
+      HttpHeaders headers = headers_parse_result.value();
 
   auto parse_body_result = parse_body(input, headers);
 
-  unwrap(parse_body_result) 
+  unwrap(parse_body_result)
 
-  return HttpRequest{method, headers, parse_body_result.value(), requested_url};
+      return HttpRequest{method, headers, parse_body_result.value(), requested_url};
 }
 
 expected<HttpHeaders, string> HttpParser::parse_headers(istream &input) {
@@ -167,6 +167,10 @@ HttpMethod str_to_method(string method_str) {
   return method_str;
 }
 
-string HttpResponse::serialize() {
-  return "";
+string HttpResponse::serialize(){
+  return  "HTTP/1.1 200 OK\r\n"
+    "Content-Type: text/html\r\n"
+    "Content-Length: 45\r\n"
+    "\r\n"
+    "<html><body><h1>Hello, World!</h1></body></html>";
 }

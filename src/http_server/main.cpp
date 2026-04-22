@@ -151,12 +151,11 @@ void test_parse() {
   println("Body: {}", string(res.value().body.begin(), res.value().body.end()));
 }
 
-int main() { 
+int main() {
   asio::io_context io_context;
 
   HttpServer s(io_context, 8080, {});
   s.start();
 
   io_context.run();
-
 }
