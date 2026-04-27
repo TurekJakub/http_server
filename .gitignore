@@ -1,4 +1,4 @@
-﻿################################################################################
+################################################################################
 # Never commit compilation (by-)products and machine-specific settings
 ################################################################################
 
@@ -12,3 +12,6 @@ x64
 *.user
 CMakeSettings.json
 .cache
+project/src/resources/secret/cert.pem
+project/src/resources/secret/key.pem
+project/.env

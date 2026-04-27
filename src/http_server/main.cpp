@@ -154,7 +154,7 @@ void test_parse() {
 int main() {
   asio::io_context io_context;
 
-  HttpServer s(io_context, 8080, {});
+  HttpServer s(io_context, {8080, "../src/resources/secret/cert.pem", "../src/resources/secret/key.pem"}, {});
   s.start();
 
   io_context.run();

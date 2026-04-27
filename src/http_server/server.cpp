@@ -1,6 +1,5 @@
 #include "server.h"
 #include "asio/ip/tcp.hpp"
-#include "asio/socket_base.hpp"
 #include "http.h"
 #include <asio.hpp>
 #include <cstdio>
@@ -14,7 +13,27 @@ using namespace asio::ip;
 using namespace asio;
 using namespace std;
 
-Connection::Connection(tcp::socket socket, Router &router) : socket(std::move(socket)), router(router) {}
+void Connection::start() {
+  try {
+    endpoint = socket.lowest_layer().remote_endpoint();
+  } catch (const asio::system_error &e) {
+    cerr << format("Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
+    return;
+  }
+
+  handshake();
+}
+
+void ::Connection::handshake() {
+  auto self = shared_from_this();
+  socket.async_handshake(asio::ssl::stream_base::server, [self](const asio::error_code &ec) {
+    if (ec) {
+      std::cerr << format("TLS handshake failed with error: {}\n", ec.message());
+      return;
+    }
+    self->read();
+  });
+}
 
 void Connection::read() {
   auto self(shared_from_this());
@@ -51,21 +70,10 @@ void Connection::read() {
   });
 }
 
-void Connection::start() {
-  try {
-    endpoint = socket.remote_endpoint();
-  } catch (const asio::system_error &e) {
-    cerr << format("Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
-    return;
-  }
-
-  read();
-}
-
 void Connection::write(string message, bool keepAlive) {
   auto self(shared_from_this());
 
-  asio::async_write(socket, asio::buffer(message), [this, keepAlive, self](const asio::error_code &ec, std::size_t /*length*/) {
+  async_write(socket, asio::buffer(message), [this, keepAlive, self](const error_code &ec, std::size_t /*length*/) {
     if (ec) {
       cerr << format("Writing data failed, error: {}", ec.message());
       return;
@@ -74,10 +82,30 @@ void Connection::write(string message, bool keepAlive) {
     if (keepAlive) {
       read();
     } else {
-      socket.shutdown(asio::socket_base::shutdown_send);
+      socket.shutdown();
     }
   });
 }
+
+HttpServer::HttpServer(io_context &io_context, ServerConfig config, Router router)
+: acceptor(io_context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server),
+port(config.port), router(router) {
+  try {
+    using namespace asio::ssl;
+    ssl_context.set_password_callback([](size_t, context_base::password_purpose) {
+      const char *pw = getenv("PRIVATE_KEY_PASS");
+      if (pw) {
+        return pw;
+      }
+      return "";
+    });
+
+    ssl_context.use_certificate_file(config.cert_path, context::pem);
+    ssl_context.use_private_key_file(config.private_key_path, context::pem);
+  } catch (const exception &err) {
+    cerr << format("Error occurred during TLS configuration, err: {}\n", err.what());
+  }
+};
 
 void HttpServer::start() {
   println("Server listening on port {}", port);
@@ -92,7 +120,7 @@ void HttpServer::accept_connection() {
     } else {
 
       println("New connection accepted");
-      make_shared<Connection>(std::move(socket), router)->start();
+      make_shared<Connection>(Connection::ssl_socket(std::move(socket), ssl_context), router)->start();
     }
 
     accept_connection();
