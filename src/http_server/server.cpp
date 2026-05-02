@@ -17,7 +17,7 @@ void Connection::start() {
   try {
     endpoint = socket.lowest_layer().remote_endpoint();
   } catch (const asio::system_error &e) {
-    cerr << format("Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
+    print(cerr,"Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
     return;
   }
 
@@ -28,7 +28,7 @@ void ::Connection::handshake() {
   auto self = shared_from_this();
   socket.async_handshake(asio::ssl::stream_base::server, [self](const asio::error_code &ec) {
     if (ec) {
-      std::cerr << format("TLS handshake failed with error: {}\n", ec.message());
+    print(cerr,"TLS handshake failed with error: {}\n", ec.message());
       return;
     }
     self->read();
@@ -42,7 +42,7 @@ void Connection::read() {
   socket.async_read_some(dest, [this, self](const error_code &ec, size_t n) {
     if (ec) {
       if (ec != error::eof) {
-        cerr << format("Receiving data failed, err: {}", ec.message());
+        print(cerr,"Receiving data failed, err: {}", ec.message());
       }
       return;
     }
@@ -54,7 +54,7 @@ void Connection::read() {
 
     auto parse_result = parser.parse_request(input_stream);
     if (!parse_result) {
-      cerr << format("Parsing incoming request fails, err: {}", parse_result.error());
+      print(cerr,"Parsing incoming request fails, err: {}", parse_result.error());
       return;
     }
 
@@ -75,7 +75,7 @@ void Connection::write(string message, bool keepAlive) {
 
   async_write(socket, asio::buffer(message), [this, keepAlive, self](const error_code &ec, std::size_t /*length*/) {
     if (ec) {
-      cerr << format("Writing data failed, error: {}", ec.message());
+      print(cerr,"Writing data failed, error: {}", ec.message());
       return;
     }
 
@@ -103,7 +103,7 @@ port(config.port), router(router) {
     ssl_context.use_certificate_file(config.cert_path, context::pem);
     ssl_context.use_private_key_file(config.private_key_path, context::pem);
   } catch (const exception &err) {
-    cerr << format("Error occurred during TLS configuration, err: {}\n", err.what());
+    print(cerr,"Error occurred during TLS configuration, err: {}\n", err.what());
   }
 };
 
@@ -115,7 +115,7 @@ void HttpServer::start() {
 void HttpServer::accept_connection() {
   acceptor.async_accept([this](const asio::error_code &ec, asio::ip::tcp::socket socket) {
     if (ec) {
-      cerr << format("Failed to establish connection, error: {}", ec.message());
+      print(cerr,"Failed to establish connection, error: {}", ec.message());
 
     } else {
 
@@ -129,6 +129,10 @@ void HttpServer::accept_connection() {
 
 void Router::handle(const HttpRequest &req, HttpResponse &resp) {
   auto _ = req;
-  auto __ = resp;
+  resp.status = 200;
+  resp.headers.set("Content-Type",  "text/html");
+  resp.headers.set("Content-Length" ,"45");
+  string body_val = "<html><body><h1>Hello, World!</h1></body></html>";
+  resp.body = HttpBody{body_val.begin(), body_val.end()};
   return;
 }
