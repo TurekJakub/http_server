@@ -27,6 +27,7 @@ private:
   void read();
   void handshake();
   void write(std::string message, bool keepAlive);
+  void redirect_to_https();
 
   ssl_socket socket;
   asio::ip::tcp::endpoint endpoint;
