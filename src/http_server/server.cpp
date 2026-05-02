@@ -1,4 +1,5 @@
 #include "server.h"
+#include "asio/bind_executor.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/streambuf.hpp"
 #include "asio/write.hpp"
@@ -26,7 +27,7 @@ void Connection::start() {
 
   auto self = shared_from_this();
 
-  async_read(socket.next_layer(), buffer, asio::transfer_exactly(1), [this, self](const error_code &ec, size_t) {
+  async_read(socket.next_layer(), buffer, asio::transfer_exactly(1), bind_executor(strand_executor, [this, self](const error_code &ec, size_t) {
     if (ec) {
       println(cerr, "Failed to establish new connection, err: {}", ec.message());
       return;
@@ -39,12 +40,12 @@ void Connection::start() {
     } else {
       redirect_to_https();
     }
-  });
+  }));
 }
 
 void ::Connection::handshake() {
   auto self = shared_from_this();
-  socket.async_handshake(asio::ssl::stream_base::server, buffer.data(), [self](const asio::error_code &ec, size_t size) {
+  socket.async_handshake(asio::ssl::stream_base::server, buffer.data(), bind_executor(strand_executor,[self](const asio::error_code &ec, size_t size) {
     if (ec) {
       print(cerr, "TLS handshake failed with error: {}\n", ec.message());
       return;
@@ -53,14 +54,14 @@ void ::Connection::handshake() {
     self->buffer.consume(size);
 
     self->read();
-  });
+  }));
 }
 
 void Connection::read() {
   auto self(shared_from_this());
   auto dest = buffer.prepare(8192);
 
-  socket.async_read_some(dest, [this, self](const error_code &ec, size_t n) {
+  socket.async_read_some(dest, bind_executor(strand_executor,[this, self](const error_code &ec, size_t n) {
     if (ec) {
       if (ec != error::eof) {
         print(cerr, "Receiving data failed, err: {}", ec.message());
@@ -88,13 +89,13 @@ void Connection::read() {
     bool keepAlive = connection_header && connection_header.value() == "Keep-Alive";
 
     write(res.serialize(), keepAlive);
-  });
+  }));
 }
 
 void Connection::write(string message, bool keepAlive) {
   auto self(shared_from_this());
 
-  async_write(socket, asio::buffer(message), [this, keepAlive, self](const error_code &ec, std::size_t) {
+  async_write(socket, asio::buffer(message), bind_executor(strand_executor,[this, keepAlive, self](const error_code &ec, std::size_t) {
     if (ec) {
       print(cerr, "Writing data failed, error: {}", ec.message());
       return;
@@ -105,12 +106,12 @@ void Connection::write(string message, bool keepAlive) {
     } else {
       socket.shutdown();
     }
-  });
+  }));
 }
 
 void Connection::redirect_to_https() {
   auto self = shared_from_this();
-  asio::async_read_until(socket.next_layer(), buffer, HTTP_BODY_DELIMITER, [this, self](const error_code &ec, size_t) {
+  asio::async_read_until(socket.next_layer(), buffer, HTTP_BODY_DELIMITER, bind_executor(strand_executor,[this, self](const error_code &ec, size_t) {
     if (ec) {
       if (ec != error::eof) {
         print(cerr, "Receiving data failed, err: {}", ec.message());
@@ -142,17 +143,17 @@ void Connection::redirect_to_https() {
     std::ostream output_stream(write_buffer.get());
     auto _ = redirect.serialize(output_stream);
 
-    async_write(socket.next_layer(), *write_buffer, [this, self, write_buffer](const error_code &ec, std::size_t) {
+    async_write(socket.next_layer(), *write_buffer, bind_executor(strand_executor,[this, self, write_buffer](const error_code &ec, std::size_t) {
       if (ec) {
         println(cerr, "Failed to send redirect to HTTPS, err: {}", ec.message());
       }
       socket.next_layer().close();
-    });
-  });
+    }));
+  }));
 }
 
 HttpServer::HttpServer(io_context &io_context, ServerConfig config, Router router)
-    : acceptor(io_context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server), port(config.port),
+    : context(io_context), acceptor(io_context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server), port(config.port),
       router(router) {
   try {
     using namespace asio::ssl;
@@ -184,7 +185,7 @@ void HttpServer::accept_connection() {
     } else {
 
       println("New connection accepted");
-      make_shared<Connection>(Connection::ssl_socket(std::move(socket), ssl_context), router)->start();
+      make_shared<Connection>(Connection::ssl_socket(std::move(socket), ssl_context), router, context)->start();
     }
 
     accept_connection();
