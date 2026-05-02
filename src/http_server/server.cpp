@@ -114,7 +114,7 @@ void Connection::redirect_to_https() {
   asio::async_read_until(socket.next_layer(), buffer, HTTP_BODY_DELIMITER, bind_executor(strand_executor,[this, self](const error_code &ec, size_t) {
     if (ec) {
       if (ec != error::eof) {
-        print(cerr, "Receiving data failed, err: {}", ec.message());
+        println(cerr, "Receiving data failed, err: {}", ec.message());
       }
       return;
     }
@@ -124,7 +124,7 @@ void Connection::redirect_to_https() {
 
     auto parse_result = parser.parse_request(input_stream);
     if (!parse_result) {
-      print(cerr, "Parsing incoming request fails, err: {}", parse_result.error());
+      println(cerr, "Parsing incoming request fails, err: {}", parse_result.error());
       return;
     }
 
@@ -132,7 +132,7 @@ void Connection::redirect_to_https() {
 
     optional<string> host_opt = req.headers.get("Host");
     if (!host_opt.has_value()) {
-      print(cerr, "Failed to determine host while redirecting request to HTTPS");
+      println(cerr, "Failed to determine host while redirecting request to HTTPS");
       return;
     }
     string host = host_opt.value();
@@ -141,7 +141,11 @@ void Connection::redirect_to_https() {
 
     auto write_buffer = std::make_shared<asio::streambuf>();
     std::ostream output_stream(write_buffer.get());
-    auto _ = redirect.serialize(output_stream);
+
+    auto serialization_result  = redirect.serialize(output_stream);
+    if (!serialization_result.has_value()){
+        println(cerr, "Failed to serialize HTTPS redirection response");
+    }
 
     async_write(socket.next_layer(), *write_buffer, bind_executor(strand_executor,[this, self, write_buffer](const error_code &ec, std::size_t) {
       if (ec) {
