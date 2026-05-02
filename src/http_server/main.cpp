@@ -8,6 +8,7 @@
     communication with TLS support
 */
 
+#include <cstddef>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -26,6 +27,8 @@
 #include "server.h"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
+#include <thread>
+#include <vector>
 
 using namespace std;
 using namespace asio;
@@ -157,5 +160,19 @@ int main() {
   HttpServer s(io_context, {8080, "../src/resources/secret/cert.pem", "../src/resources/secret/key.pem"}, {});
   s.start();
 
-  io_context.run();
+  // TODO: make this user configurable from config
+  const unsigned int thread_count = std::max(1u, std::thread::hardware_concurrency());
+  vector<std::thread> thread_pool (thread_count);
+
+  for (size_t i =0; i< thread_count; ++i){
+    thread_pool.emplace_back([&io_context](){
+        io_context.run();
+    });
+  }
+
+  for (auto& t : thread_pool){
+    if(t.joinable()){
+        t.join();
+    }
+  }
 }
