@@ -280,3 +280,7 @@ expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
   }
   return {};
 }
+
+HttpResponse get_redirection_response(string target) {
+  return {{{{"Location", target}, {"Content-Length", "0"}, {"Connection", "close"}}}, {}, 301};
+}

@@ -13,7 +13,13 @@
 #include <variant>
 #include <vector>
 
-#define unwrap(result) if(!result) {return unexpected(result.error());}
+#define unwrap(result)                                                                                                                     \
+  if (!result) {                                                                                                                           \
+    return unexpected(result.error());                                                                                                     \
+  }
+
+inline static constexpr unsigned char TLS_HANDSHAKE_IDENTIFIER_BYTE = 0x16;
+inline static std::string HTTP_BODY_DELIMITER = "\r\n\r\n";
 
 struct GET {};
 struct POST {};
@@ -24,7 +30,8 @@ struct PATCH {};
 typedef std::variant<GET, POST, PUT, DELETE, PATCH, std::string> HttpMethod;
 
 inline constexpr std::array<std::pair<std::string_view, HttpMethod>, 5> method_map = {
-    {{"GET", GET{}}, {"POST", POST{}}, {"PUT", PUT{}}, {"DELETE", DELETE{}}, {"PATCH", PATCH{}}}};
+    {{"GET", GET{}}, {"POST", POST{}}, {"PUT", PUT{}}, {"DELETE", DELETE{}}, {"PATCH", PATCH{}}}
+};
 
 HttpMethod str_to_method(std::string method_str);
 
@@ -33,6 +40,8 @@ typedef std::map<std::string, std::string> HttpHeader;
 
 class HttpHeaders {
 public:
+  HttpHeaders() = default;
+  HttpHeaders(std::map<std::string, std::string> headers) : headers(std::move(headers)) {};
   void set(std::string header, std::string value);
   std::optional<std::string> get(std::string header) const;
   std::ranges::subrange<HttpHeader::const_iterator> get_all();
@@ -43,8 +52,8 @@ private:
 
 class HttpResponse {
 public:
-  HttpResponse(){};
-  HttpResponse(HttpHeaders headers, HttpBody body, unsigned short status) : headers(headers), body(body), status(status) {}
+  HttpResponse() {};
+  HttpResponse(HttpHeaders headers, HttpBody body, unsigned short status) : headers(std::move(headers)), body(body), status(status) {}
   std::string serialize();
   std::expected<void, std::string> serialize(std::ostream &serialize_to);
   HttpHeaders headers;
@@ -78,5 +87,6 @@ private:
 };
 
 std::optional<std::string> http_status_to_reason(unsigned short status_code);
+HttpResponse get_redirection_response(std::string target);
 
 #endif

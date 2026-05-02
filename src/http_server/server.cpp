@@ -1,11 +1,14 @@
 #include "server.h"
 #include "asio/ip/tcp.hpp"
+#include "asio/streambuf.hpp"
+#include "asio/write.hpp"
 #include "http.h"
 #include <asio.hpp>
 #include <cstdio>
 #include <format>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <print>
 #include <string>
 
@@ -17,20 +20,38 @@ void Connection::start() {
   try {
     endpoint = socket.lowest_layer().remote_endpoint();
   } catch (const asio::system_error &e) {
-    print(cerr,"Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
+    print(cerr, "Failed to establish connection - failed to obtain socket remote endpoint err: {}", e.what());
     return;
   }
 
-  handshake();
+  auto self = shared_from_this();
+
+  async_read(socket.next_layer(), buffer, asio::transfer_exactly(1), [this, self](const error_code &ec, size_t) {
+    if (ec) {
+      println(cerr, "Failed to establish new connection, err: {}", ec.message());
+      return;
+    }
+
+    const unsigned char *data = static_cast<const unsigned char *>(buffer.data().data());
+
+    if (data[0] == TLS_HANDSHAKE_IDENTIFIER_BYTE) {
+      handshake();
+    } else {
+      redirect_to_https();
+    }
+  });
 }
 
 void ::Connection::handshake() {
   auto self = shared_from_this();
-  socket.async_handshake(asio::ssl::stream_base::server, [self](const asio::error_code &ec) {
+  socket.async_handshake(asio::ssl::stream_base::server, buffer.data(), [self](const asio::error_code &ec, size_t size) {
     if (ec) {
-    print(cerr,"TLS handshake failed with error: {}\n", ec.message());
+      print(cerr, "TLS handshake failed with error: {}\n", ec.message());
       return;
     }
+
+    self->buffer.consume(size);
+
     self->read();
   });
 }
@@ -42,7 +63,7 @@ void Connection::read() {
   socket.async_read_some(dest, [this, self](const error_code &ec, size_t n) {
     if (ec) {
       if (ec != error::eof) {
-        print(cerr,"Receiving data failed, err: {}", ec.message());
+        print(cerr, "Receiving data failed, err: {}", ec.message());
       }
       return;
     }
@@ -54,7 +75,7 @@ void Connection::read() {
 
     auto parse_result = parser.parse_request(input_stream);
     if (!parse_result) {
-      print(cerr,"Parsing incoming request fails, err: {}", parse_result.error());
+      print(cerr, "Parsing incoming request fails, err: {}", parse_result.error());
       return;
     }
 
@@ -73,9 +94,9 @@ void Connection::read() {
 void Connection::write(string message, bool keepAlive) {
   auto self(shared_from_this());
 
-  async_write(socket, asio::buffer(message), [this, keepAlive, self](const error_code &ec, std::size_t /*length*/) {
+  async_write(socket, asio::buffer(message), [this, keepAlive, self](const error_code &ec, std::size_t) {
     if (ec) {
-      print(cerr,"Writing data failed, error: {}", ec.message());
+      print(cerr, "Writing data failed, error: {}", ec.message());
       return;
     }
 
@@ -87,9 +108,52 @@ void Connection::write(string message, bool keepAlive) {
   });
 }
 
+void Connection::redirect_to_https() {
+  auto self = shared_from_this();
+  asio::async_read_until(socket.next_layer(), buffer, HTTP_BODY_DELIMITER, [this, self](const error_code &ec, size_t) {
+    if (ec) {
+      if (ec != error::eof) {
+        print(cerr, "Receiving data failed, err: {}", ec.message());
+      }
+      return;
+    }
+
+    std::istream input_stream(&buffer);
+    HttpParser parser;
+
+    auto parse_result = parser.parse_request(input_stream);
+    if (!parse_result) {
+      print(cerr, "Parsing incoming request fails, err: {}", parse_result.error());
+      return;
+    }
+
+    auto req = parse_result.value();
+
+    optional<string> host_opt = req.headers.get("Host");
+    if (!host_opt.has_value()) {
+      print(cerr, "Failed to determine host while redirecting request to HTTPS");
+      return;
+    }
+    string host = host_opt.value();
+
+    HttpResponse redirect = get_redirection_response(format("https://{}{}", host, req.requested_url));
+
+    auto write_buffer = std::make_shared<asio::streambuf>();
+    std::ostream output_stream(write_buffer.get());
+    auto _ = redirect.serialize(output_stream);
+
+    async_write(socket.next_layer(), *write_buffer, [this, self, write_buffer](const error_code &ec, std::size_t) {
+      if (ec) {
+        println(cerr, "Failed to send redirect to HTTPS, err: {}", ec.message());
+      }
+      socket.next_layer().close();
+    });
+  });
+}
+
 HttpServer::HttpServer(io_context &io_context, ServerConfig config, Router router)
-: acceptor(io_context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server),
-port(config.port), router(router) {
+    : acceptor(io_context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server), port(config.port),
+      router(router) {
   try {
     using namespace asio::ssl;
     ssl_context.set_password_callback([](size_t, context_base::password_purpose) {
@@ -103,7 +167,7 @@ port(config.port), router(router) {
     ssl_context.use_certificate_file(config.cert_path, context::pem);
     ssl_context.use_private_key_file(config.private_key_path, context::pem);
   } catch (const exception &err) {
-    print(cerr,"Error occurred during TLS configuration, err: {}\n", err.what());
+    print(cerr, "Error occurred during TLS configuration, err: {}\n", err.what());
   }
 };
 
@@ -115,7 +179,7 @@ void HttpServer::start() {
 void HttpServer::accept_connection() {
   acceptor.async_accept([this](const asio::error_code &ec, asio::ip::tcp::socket socket) {
     if (ec) {
-      print(cerr,"Failed to establish connection, error: {}", ec.message());
+      print(cerr, "Failed to establish connection, error: {}", ec.message());
 
     } else {
 
@@ -130,9 +194,9 @@ void HttpServer::accept_connection() {
 void Router::handle(const HttpRequest &req, HttpResponse &resp) {
   auto _ = req;
   resp.status = 200;
-  resp.headers.set("Content-Type",  "text/html");
-  resp.headers.set("Content-Length" ,"45");
-  string body_val = "<html><body><h1>Hello, World!</h1></body></html>";
+  resp.headers.set("Content-Type", "text/html");
+  resp.headers.set("Content-Length", "64");
+  string body_val = "<!doctype html><html><body><h1>Hello, World !</h1></body></html>";
   resp.body = HttpBody{body_val.begin(), body_val.end()};
   return;
 }
