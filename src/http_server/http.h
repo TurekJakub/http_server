@@ -7,14 +7,13 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #define unwrap(result) if(!result) {return unexpected(result.error());}
-
-// enum HttpMethod { GET, POST, PUT, DELETE, PATCH };
 
 struct GET {};
 struct POST {};
@@ -24,7 +23,7 @@ struct PATCH {};
 
 typedef std::variant<GET, POST, PUT, DELETE, PATCH, std::string> HttpMethod;
 
-constexpr std::array<std::pair<std::string, HttpMethod>, 5> method_map = {
+inline constexpr std::array<std::pair<std::string_view, HttpMethod>, 5> method_map = {
     {{"GET", GET{}}, {"POST", POST{}}, {"PUT", PUT{}}, {"DELETE", DELETE{}}, {"PATCH", PATCH{}}}};
 
 HttpMethod str_to_method(std::string method_str);
@@ -47,6 +46,7 @@ public:
   HttpResponse(){};
   HttpResponse(HttpHeaders headers, HttpBody body, unsigned short status) : headers(headers), body(body), status(status) {}
   std::string serialize();
+  std::expected<void, std::string> serialize(std::ostream &serialize_to);
   HttpHeaders headers;
   HttpBody body;
   unsigned short status;
@@ -76,5 +76,7 @@ private:
   std::expected<HttpBody, std::string> parse_chunked_body(std::istream &input);
   std::expected<HttpBody, std::string> parse_body(std::istream &input, const HttpHeaders &headers);
 };
+
+std::optional<std::string> http_status_to_reason(unsigned short status_code);
 
 #endif
