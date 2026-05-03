@@ -155,14 +155,17 @@ void test_parse() {
 }
 
 int main() {
-  asio::io_context io_context;
+  io_context io_context;
+
+  auto guard = make_work_guard(io_context);
 
   HttpServer s(io_context, {8080, "../src/resources/secret/cert.pem", "../src/resources/secret/key.pem"}, {});
   s.start();
 
   // TODO: make this user configurable from config
-  const unsigned int thread_count = std::max(1u, std::thread::hardware_concurrency());
-  vector<std::thread> thread_pool (thread_count);
+  const unsigned int thread_count = max(1u, std::thread::hardware_concurrency());
+  vector<std::thread> thread_pool;
+  thread_pool.reserve(thread_count);
 
   for (size_t i =0; i< thread_count; ++i){
     thread_pool.emplace_back([&io_context](){
