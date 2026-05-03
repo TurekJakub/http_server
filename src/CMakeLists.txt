@@ -1,4 +1,5 @@
 include(ExternalProject)
+include(FetchContent)
 
 cmake_minimum_required(VERSION 4.0)
 
@@ -13,11 +14,9 @@ endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_BINARY_DIR "./build")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_CACHEFILE_DIR "${MAKE_BINARY_DIR}")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(ASIO_VERSION asio-1-36-0)
@@ -88,6 +87,12 @@ ExternalProject_Add(asio
 ExternalProject_Get_Property(asio SOURCE_DIR)
 set(ASIO_SOURCE_DIR ${SOURCE_DIR})
 
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.4.0
+)
+FetchContent_MakeAvailable(tomlplusplus)
 
 set(OPENSSL_DIR ${CMAKE_BINARY_DIR}/openssl-install)
 get_filename_component(OPENSSL_DIR_ABS ${OPENSSL_DIR} ABSOLUTE)
@@ -142,10 +147,12 @@ endif()
 target_include_directories(http_server PRIVATE   
     ${ASIO_SOURCE_DIR}/asio/include
     ${SOURCE_DIR}/include
+    ${tomlplusplus_SOURCE_DIR}/include
 )
 
 target_link_libraries(http_server
     PRIVATE
+    tomlplusplus::tomlplusplus
     OpenSSL_SSL
     OpenSSL_Crypto
     ${EXTRA_LINKING}
