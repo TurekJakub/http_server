@@ -154,12 +154,22 @@ void test_parse() {
   println("Body: {}", string(res.value().body.begin(), res.value().body.end()));
 }
 
+void test_handler(const HttpRequest &req, HttpResponse &resp) {
+  auto _ = req;
+  resp.status = 200;
+  resp.headers.set("Content-Type", "text/html");
+  resp.headers.set("Content-Length", "64");
+  string body_val = "<!doctype html><html><body><h1>Hello, World !</h1></body></html>";
+  resp.body = HttpBody{body_val.begin(), body_val.end()};
+}
+
 int main() {
   io_context io_context;
 
   auto guard = make_work_guard(io_context);
 
-  HttpServer s(io_context, {8080, "../src/resources/secret/cert.pem", "../src/resources/secret/key.pem"}, {});
+  HttpServer s(io_context, {8080, "../src/resources/secret/cert.pem", "../src/resources/secret/key.pem"});
+  s.add_handler("/", test_handler);
   s.start();
 
   // TODO: make this user configurable from config
@@ -167,15 +177,13 @@ int main() {
   vector<std::thread> thread_pool;
   thread_pool.reserve(thread_count);
 
-  for (size_t i =0; i< thread_count; ++i){
-    thread_pool.emplace_back([&io_context](){
-        io_context.run();
-    });
+  for (size_t i = 0; i < thread_count; ++i) {
+    thread_pool.emplace_back([&io_context]() { io_context.run(); });
   }
 
-  for (auto& t : thread_pool){
-    if(t.joinable()){
-        t.join();
+  for (auto &t : thread_pool) {
+    if (t.joinable()) {
+      t.join();
     }
   }
 }
