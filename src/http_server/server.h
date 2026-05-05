@@ -15,6 +15,8 @@
 #include <string>
 #include <utility>
 
+#include "config_parser.h"
+
 template <typename T>
 concept handler = requires(T handler_func, const HttpRequest &req, HttpResponse &resp) {
   { handler_func(req, resp) } -> std::same_as<void>;
@@ -54,12 +56,6 @@ private:
   asio::strand<asio::io_context::executor_type> strand_executor;
 };
 
-struct ServerConfig {
-public:
-  unsigned short port;
-  std::string cert_path;
-  std::string private_key_path;
-};
 class HttpServer {
 public:
   HttpServer(asio::io_context &io_context, ServerConfig config);
@@ -67,7 +63,7 @@ public:
   template <handler T> void add_handler(std::string route, T &&handler_func) {
     router.add_handler(std::move(route), std::forward<T>(handler_func));
   };
-  template <handler T> void set_default_handler(T &&default_handler) {router.set_default_handler(std::move(default_handler));}
+  template <handler T> void set_default_handler(T &&default_handler) { router.set_default_handler(std::move(default_handler)); }
 
 private:
   void accept_connection();

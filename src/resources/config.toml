@@ -1,0 +1,12 @@
+[connection]
+port = 8080
+certificate_path = "../src/resources/secret/cert.pem"
+private_key_path = "../src/resources/secret/key.pem"
+
+[served_content]
+static_files_source_dir = ""
+http_404_error_page = ""
+
+[performance]
+# Set to 0 or omit completely to use hw threads count returned by std::thread::hardware_concurrency() 
+max_thread_count = 2
