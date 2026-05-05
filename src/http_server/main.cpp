@@ -23,6 +23,7 @@
 #include "asio/error_code.hpp"
 #include "asio/ssl/verify_mode.hpp"
 #include "asio/system_error.hpp"
+#include "config_parser.h"
 #include "http.h"
 #include "server.h"
 #include <asio.hpp>
@@ -168,12 +169,17 @@ int main() {
 
   auto guard = make_work_guard(io_context);
 
-  HttpServer s(io_context, {8080, "../src/resources/secret/cert.pem", "../src/resources/secret/key.pem"});
+  auto config_result = ServerConfig::parse_from_file("../src/resources/config.toml");
+  if(!config_result.has_value()){
+    println(cerr,"{}", config_result.error());
+    return 1;
+  }
+
+  HttpServer s(io_context, config_result.value());
   s.add_handler("/", test_handler);
   s.start();
 
-  // TODO: make this user configurable from config
-  const unsigned int thread_count = max(1u, std::thread::hardware_concurrency());
+  const unsigned int thread_count = max(1u, config_result->max_thread_count);
   vector<std::thread> thread_pool;
   thread_pool.reserve(thread_count);
 
