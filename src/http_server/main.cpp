@@ -24,8 +24,7 @@
 #include "asio/ssl/verify_mode.hpp"
 #include "asio/system_error.hpp"
 #include "config_parser.h"
-#include "http.h"
-#include "server.h"
+#include "../libs/http/server.h"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 #include <thread>
@@ -169,7 +168,7 @@ int main() {
 
   auto guard = make_work_guard(io_context);
 
-  auto config_result = ServerConfig::parse_from_file("../src/resources/config.toml");
+  auto config_result = ServerConfig::parse_from_file("../resources/config.toml");
   if(!config_result.has_value()){
     println(cerr,"{}", config_result.error());
     return 1;

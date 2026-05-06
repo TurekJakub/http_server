@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ################################################################################
 # Never commit compilation (by-)products and machine-specific settings
 ################################################################################
@@ -14,4 +15,21 @@ CMakeSettings.json
 .cache
 project/src/resources/secret/cert.pem
 project/src/resources/secret/key.pem
+=======
+﻿################################################################################
+# Never commit compilation (by-)products and machine-specific settings
+################################################################################
+
+.vscode
+.vs
+build
+out
+Debug
+Release
+x64
+*.user
+CMakeSettings.json
+.cache
+project/resources/secret
+>>>>>>> aff49c3 (refactoring improve project structure)
 project/.env
