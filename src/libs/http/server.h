@@ -15,7 +15,7 @@
 #include <string>
 #include <utility>
 
-#include "config_parser.h"
+#include "../../http_server/config_parser.h"
 
 template <typename T>
 concept handler = requires(T handler_func, const HttpRequest &req, HttpResponse &resp) {

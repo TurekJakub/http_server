@@ -1,7 +1,7 @@
 [connection]
 port = 8080
-certificate_path = "../src/resources/secret/cert.pem"
-private_key_path = "../src/resources/secret/key.pem"
+certificate_path = "../resources/secret/cert.pem"
+private_key_path = "../resources/secret/key.pem"
 
 [served_content]
 static_files_source_dir = ""
