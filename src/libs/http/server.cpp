@@ -210,11 +210,27 @@ Router::Router(): routing_table(), default_handler([](const HttpRequest &req, Ht
   }) {}
 // clang-format on
 
-void Router::route(const HttpRequest &req, HttpResponse &resp) {
-  auto it = routing_table.find(req.requested_url);
-  if (it != routing_table.end() && it->second) {
-    it->second(req, resp);
-    return;
+void Router::route(HttpRequest &req, HttpResponse &resp) {
+  auto it = routing_table.lower_bound(req.requested_url);
+
+  if (it != routing_table.end() && it->first == req.requested_url) {
+    auto &[handler, _] = (*it).second;
+    if (handler) {
+      handler(req, resp);
+      return;
+    }
   }
+
+  while (it != routing_table.begin()) {
+    --it;
+    auto &[route, record] = *it;
+    auto &[handler, prefix_match] = record;
+    if (prefix_match && req.requested_url.starts_with(route)) {
+      req.requested_url = req.requested_url.substr(route.length());
+      handler(req, resp);
+      return;
+    }
+  }
+
   default_handler(req, resp);
 }
