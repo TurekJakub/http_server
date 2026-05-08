@@ -6,6 +6,7 @@
 #include "http.h"
 #include <asio.hpp>
 #include <cstdio>
+#include <expected>
 #include <format>
 #include <iostream>
 #include <memory>
@@ -201,12 +202,13 @@ void HttpServer::accept_connection() {
 }
 
 // clang-format off
-Router::Router(): routing_table(), default_handler([](const HttpRequest &req, HttpResponse &resp) {
+Router::Router(): routing_table(), default_handler([](const HttpRequest &req, HttpResponse &resp) -> std::expected<void, HandlerError>{
   auto &_ = req;
   resp.status = 404;
   resp.headers.set("Content-Type", "text/html");
   string body_content = "<html><body><h1>404 Not Found</h1></body></html>";
   resp.body = HttpBody{body_content.begin(), body_content.end()};
+  return {};
   }) {}
 // clang-format on
 
@@ -215,10 +217,8 @@ void Router::route(HttpRequest &req, HttpResponse &resp) {
 
   if (it != routing_table.end() && it->first == req.requested_url) {
     auto &[handler, _] = (*it).second;
-    if (handler) {
-      handler(req, resp);
-      return;
-    }
+    invoke_handler(handler, req, resp);
+    return;
   }
 
   while (it != routing_table.begin()) {
@@ -227,10 +227,30 @@ void Router::route(HttpRequest &req, HttpResponse &resp) {
     auto &[handler, prefix_match] = record;
     if (prefix_match && req.requested_url.starts_with(route)) {
       req.requested_url = req.requested_url.substr(route.length());
-      handler(req, resp);
+      invoke_handler(handler, req, resp);
       return;
     }
   }
 
-  default_handler(req, resp);
+  invoke_handler(default_handler, req, resp);
+}
+
+void Router::invoke_handler(handler_function &handler, const HttpRequest &req, HttpResponse &res) {
+  if (!handler) {
+    return;
+  }
+
+  auto handler_result = handler(req, res);
+  if (handler_result.has_value()) {
+    return;
+  }
+
+  HandlerError err = handler_result.error();
+
+  println(cerr, "Error occurred while invoking handler for route: {}, error: {}", req.requested_url, err.message);
+
+  res.status = err.status;
+  res.headers.set("Content-Type", "text/html");
+  string body_content = format("<html><body><h1>{} {}</h1></body></html>", err.status, http_status_to_reason(err.status).value_or("Custom status"));
+  res.body = HttpBody{body_content.begin(), body_content.end()};
 }
