@@ -138,6 +138,12 @@ add_executable(http_server
     libs/http/server.cpp
     http_server/config_parser.h
     http_server/config_parser.cpp
+    http_server/static_files_handler.h
+    http_server/static_files_handler.cpp
+    libs/utils/fs_utils.h
+    libs/utils/fs_utils.cpp
+    libs/http/mime_type.h
+    libs/http/mime_type.cpp
 )
 
 add_dependencies(http_server openssl asio)

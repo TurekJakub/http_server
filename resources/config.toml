@@ -4,7 +4,7 @@ certificate_path = "../resources/secret/cert.pem"
 private_key_path = "../resources/secret/key.pem"
 
 [served_content]
-static_files_source_dir = ""
+static_files_source_dir = "../resources/static"
 http_404_error_page = ""
 
 [performance]
