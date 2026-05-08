@@ -59,7 +59,6 @@ public:
   HttpHeaders headers;
   HttpBody body;
   unsigned short status;
-
 private:
 };
 

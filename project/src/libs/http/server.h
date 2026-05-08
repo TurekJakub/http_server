@@ -48,7 +48,7 @@ private:
 
   template <handler T> handler_function wrap_handler(T &&handler_func) {
     return [handler = std::forward<T>(handler_func)](const HttpRequest &req, HttpResponse &res) mutable -> std::expected<void, HandlerError> {
-      using return_type = std::invoke_result_t<T, const HttpRequest &, HttpResponse &>;
+      using return_type = std::invoke_result_t<std::decay_t<T>, const HttpRequest &, HttpResponse &>;
       if constexpr (std::is_same_v<return_type, void>) {
         handler(req, res);
         return {};
