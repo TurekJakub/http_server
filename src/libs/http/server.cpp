@@ -24,8 +24,8 @@ using namespace std;
 using namespace http_server::http;
 
 namespace {
- constexpr unsigned char TLS_HANDSHAKE_IDENTIFIER_BYTE = 0x16;
- constexpr std::string HTTP_BODY_DELIMITER = "\r\n\r\n";
+constexpr unsigned char TLS_HANDSHAKE_IDENTIFIER_BYTE = 0x16;
+constexpr std::string HTTP_BODY_DELIMITER = "\r\n\r\n";
 class Router {
 public:
   Router();
@@ -212,11 +212,11 @@ void Connection::redirect_to_https() {
 // clang-format on
 
 namespace http_server::http {
-  class HttpServer::Impl {
-    public:
-    Impl(HttpServerConfig config)
+class HttpServer::Impl {
+public:
+  Impl(HttpServerConfig config)
       : router(), context(config.max_thread_count), acceptor(context, tcp::endpoint(tcp::v4(), config.port)),
-      ssl_context(ssl::context::tlsv13_server), port(config.port), max_concurency(config.max_thread_count) {
+        ssl_context(ssl::context::tlsv13_server), port(config.port), max_concurency(config.max_thread_count) {
     try {
       using namespace asio::ssl;
       ssl_context.set_password_callback([](size_t, context_base::password_purpose) {
@@ -233,14 +233,14 @@ namespace http_server::http {
       print(cerr, "Error occurred during TLS configuration, err: {}\n", err.what());
     }
   }
-  
+
   void start();
-  
+
   Router router;
-  
-  private:
+
+private:
   void accept_connection();
-  
+
   asio::io_context context;
   std::vector<std::thread> thread_pool;
   asio::ip::tcp::acceptor acceptor;
@@ -256,14 +256,14 @@ HttpServer::~HttpServer() = default;
 void HttpServer::Impl::start() {
   println("Server listening on port {}", port);
   accept_connection();
-  
+
   const unsigned int thread_count = max(1u, max_concurency);
   thread_pool.reserve(thread_count);
-  
+
   for (size_t i = 0; i < thread_count; ++i) {
     thread_pool.emplace_back([this]() { this->context.run(); });
   }
-  
+
   for (auto &t : thread_pool) {
     if (t.joinable()) {
       t.join();
@@ -275,13 +275,13 @@ void HttpServer::Impl::accept_connection() {
   acceptor.async_accept([this](const asio::error_code &ec, asio::ip::tcp::socket socket) {
     if (ec) {
       print(cerr, "Failed to establish connection, error: {}", ec.message());
-      
+
     } else {
-      
+
       println("New connection accepted");
       make_shared<Connection>(Connection::ssl_socket(std::move(socket), ssl_context), router, context)->start();
     }
-    
+
     accept_connection();
   });
 }
@@ -293,14 +293,14 @@ void HttpServer::do_add_handler(string route, handler_function handler, bool pre
 }
 
 void HttpServer::do_set_default_handler(handler_function handler) { impl->router.set_default_handler(std::move(handler)); }
-}
+} // namespace http_server::http
 
 // clang-format off
 Router::Router(): routing_table(), default_handler([](const HttpRequest &req, HttpResponse &resp) -> std::expected<void, HandlerError>{
   auto &_ = req;
   resp.status() = HttpStatus::OK;
   resp.headers().set("Content-Type", "text/html");
-  string body_content = "<html><body><h1>404 Not Found</h1></body></html>";
+  string body_content = "<!DOCTYPE html><html><body><h1>404 Not Found</h1></body></html>";
   resp.body() = HttpBody{body_content.begin(), body_content.end()};
   return {};
   }) {}
@@ -345,7 +345,7 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
 
   res.status() = err.status();
   res.headers().set("Content-Type", "text/html");
-  string body_content = format("<html><body><h1>{} {}</h1></body></html>", (unsigned short)err.status(),
+  string body_content = format("<!DOCTYPE html><html><body><h1>{} {}</h1></body></html>", (unsigned short)err.status(),
                                http_status_to_reason(err.status()).value_or("Custom status"));
   res.body() = HttpBody{body_content.begin(), body_content.end()};
 }
