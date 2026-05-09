@@ -13,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <print>
 #include <string>
 
@@ -93,14 +94,15 @@ void Connection::read() {
                            auto connection_header = req.headers.get("Connection");
                            bool keepAlive = connection_header && connection_header.value() == "Keep-Alive";
 
-                           write(res.serialize(), keepAlive);
+                           write(make_shared<string>(res.serialize()), keepAlive);
                          }));
 }
 
-void Connection::write(string message, bool keepAlive) {
+void Connection::write(shared_ptr<string> message, bool keepAlive) {
   auto self(shared_from_this());
 
-  async_write(socket, asio::buffer(message), bind_executor(strand_executor, [this, keepAlive, self](const error_code &ec, std::size_t) {
+  async_write(socket, asio::buffer(*message),
+              bind_executor(strand_executor, [this, keepAlive, self, message](const error_code &ec, std::size_t) {
                 if (ec) {
                   print(cerr, "Writing data failed, error: {}", ec.message());
                   return;
@@ -111,7 +113,7 @@ void Connection::write(string message, bool keepAlive) {
                 } else {
                   asio::error_code ec;
                   if (socket.shutdown(ec)) {
-                    // This errors should be generally safe to ignore, but log them for debugging purposes 
+                    // This errors should be generally safe to ignore, but log them for debugging purposes
                     println(cerr, "Connection shutdown error: {}", ec.message());
                   }
                 }
