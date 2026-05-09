@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdio>
 #include <expected>
@@ -8,12 +9,12 @@
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <system_error>
-#include <unordered_map>
 #include <utility>
 
-#include "http.h"
 #include "../utils/string_utils.h"
+#include "http.h"
 
 using namespace std;
 using namespace strutils;
@@ -26,7 +27,11 @@ expected<HttpResponse, std::string> HttpParser::parse_response(std::istream &inp
   }
 
   auto tokens = split(header_line, " ");
-  unsigned int status_code = stoi(tokens[1]);
+
+  HttpStatus status_code = (HttpStatus)stoi(tokens[1]);
+  if (!http_status_to_reason(status_code).has_value()) {
+    return unexpected(format("Unknown HTTP status {}", (unsigned short)status_code));
+  }
 
   auto parse_result = parse_headers(input);
 
@@ -170,78 +175,83 @@ HttpMethod str_to_method(string method_str) {
   return method_str;
 }
 
-optional<string> http_status_to_reason(unsigned short status_code) {
-  static const unordered_map<unsigned short, string> mapping = {
-      {100, "Continue"                       },
-      {101, "Switching Protocols"            },
-      {102, "Processing"                     },
-      {103, "Early Hints"                    },
+optional<string_view> http_status_to_reason(HttpStatus status) {
+  using status_reason_mapping = pair<HttpStatus, string_view>;
+  static constexpr array<status_reason_mapping, 62> mapping = {
+      {{HttpStatus::Continue, "Continue"},
+       {HttpStatus::SwitchingProtocols, "Switching Protocols"},
+       {HttpStatus::Processing, "Processing"},
+       {HttpStatus::EarlyHints, "Early Hints"},
 
-      {200, "OK"                             },
-      {201, "Created"                        },
-      {202, "Accepted"                       },
-      {203, "Non-Authoritative Information"  },
-      {204, "No Content"                     },
-      {205, "Reset Content"                  },
-      {206, "Partial Content"                },
-      {207, "Multi-Status"                   },
-      {208, "Already Reported"               },
-      {226, "IM Used"                        },
+       {HttpStatus::OK, "OK"},
+       {HttpStatus::Created, "Created"},
+       {HttpStatus::Accepted, "Accepted"},
+       {HttpStatus::NonAuthoritativeInformation, "Non-Authoritative Information"},
+       {HttpStatus::NoContent, "No Content"},
+       {HttpStatus::ResetContent, "Reset Content"},
+       {HttpStatus::PartialContent, "Partial Content"},
+       {HttpStatus::MultiStatus, "Multi-Status"},
+       {HttpStatus::AlreadyReported, "Already Reported"},
+       {HttpStatus::IMUsed, "IM Used"},
 
-      {300, "Multiple Choices"               },
-      {301, "Moved Permanently"              },
-      {302, "Found"                          },
-      {303, "See Other"                      },
-      {304, "Not Modified"                   },
-      {305, "Use Proxy"                      },
-      {307, "Temporary Redirect"             },
-      {308, "Permanent Redirect"             },
+       {HttpStatus::MultipleChoices, "Multiple Choices"},
+       {HttpStatus::MovedPermanently, "Moved Permanently"},
+       {HttpStatus::Found, "Found"},
+       {HttpStatus::SeeOther, "See Other"},
+       {HttpStatus::NotModified, "Not Modified"},
+       {HttpStatus::UseProxy, "Use Proxy"},
+       {HttpStatus::TemporaryRedirect, "Temporary Redirect"},
+       {HttpStatus::PermanentRedirect, "Permanent Redirect"},
 
-      {400, "Bad Request"                    },
-      {401, "Unauthorized"                   },
-      {402, "Payment Required"               },
-      {403, "Forbidden"                      },
-      {404, "Not Found"                      },
-      {405, "Method Not Allowed"             },
-      {406, "Not Acceptable"                 },
-      {407, "Proxy Authentication Required"  },
-      {408, "Request Timeout"                },
-      {409, "Conflict"                       },
-      {410, "Gone"                           },
-      {411, "Length Required"                },
-      {412, "Precondition Failed"            },
-      {413, "Payload Too Large"              },
-      {414, "URI Too Long"                   },
-      {415, "Unsupported Media Type"         },
-      {416, "Range Not Satisfiable"          },
-      {417, "Expectation Failed"             },
-      {418, "I'm a teapot"                   },
-      {421, "Misdirected Request"            },
-      {422, "Unprocessable Entity"           },
-      {423, "Locked"                         },
-      {424, "Failed Dependency"              },
-      {425, "Too Early"                      },
-      {426, "Upgrade Required"               },
-      {428, "Precondition Required"          },
-      {429, "Too Many Requests"              },
-      {431, "Request Header Fields Too Large"},
-      {451, "Unavailable For Legal Reasons"  },
+       {HttpStatus::BadRequest, "Bad Request"},
+       {HttpStatus::Unauthorized, "Unauthorized"},
+       {HttpStatus::PaymentRequired, "Payment Required"},
+       {HttpStatus::Forbidden, "Forbidden"},
+       {HttpStatus::NotFound, "Not Found"},
+       {HttpStatus::MethodNotAllowed, "Method Not Allowed"},
+       {HttpStatus::NotAcceptable, "Not Acceptable"},
+       {HttpStatus::ProxyAuthenticationRequired, "Proxy Authentication Required"},
+       {HttpStatus::RequestTimeout, "Request Timeout"},
+       {HttpStatus::Conflict, "Conflict"},
+       {HttpStatus::Gone, "Gone"},
+       {HttpStatus::LengthRequired, "Length Required"},
+       {HttpStatus::PreconditionFailed, "Precondition Failed"},
+       {HttpStatus::PayloadTooLarge, "Payload Too Large"},
+       {HttpStatus::URITooLong, "URI Too Long"},
+       {HttpStatus::UnsupportedMediaType, "Unsupported Media Type"},
+       {HttpStatus::RangeNotSatisfiable, "Range Not Satisfiable"},
+       {HttpStatus::ExpectationFailed, "Expectation Failed"},
+       {HttpStatus::ImATeapot, "I'm a teapot"},
+       {HttpStatus::MisdirectedRequest, "Misdirected Request"},
+       {HttpStatus::UnprocessableEntity, "Unprocessable Entity"},
+       {HttpStatus::Locked, "Locked"},
+       {HttpStatus::FailedDependency, "Failed Dependency"},
+       {HttpStatus::TooEarly, "Too Early"},
+       {HttpStatus::UpgradeRequired, "Upgrade Required"},
+       {HttpStatus::PreconditionRequired, "Precondition Required"},
+       {HttpStatus::TooManyRequests, "Too Many Requests"},
+       {HttpStatus::RequestHeaderFieldsTooLarge, "Request Header Fields Too Large"},
+       {HttpStatus::UnavailableForLegalReasons, "Unavailable For Legal Reasons"},
 
-      {500, "Internal Server Error"          },
-      {501, "Not Implemented"                },
-      {502, "Bad Gateway"                    },
-      {503, "Service Unavailable"            },
-      {504, "Gateway Timeout"                },
-      {505, "HTTP Version Not Supported"     },
-      {506, "Variant Also Negotiates"        },
-      {507, "Insufficient Storage"           },
-      {508, "Loop Detected"                  },
-      {510, "Not Extended"                   },
-      {511, "Network Authentication Required"}
+       {HttpStatus::InternalServerError, "Internal Server Error"},
+       {HttpStatus::NotImplemented, "Not Implemented"},
+       {HttpStatus::BadGateway, "Bad Gateway"},
+       {HttpStatus::ServiceUnavailable, "Service Unavailable"},
+       {HttpStatus::GatewayTimeout, "Gateway Timeout"},
+       {HttpStatus::HTTPVersionNotSupported, "HTTP Version Not Supported"},
+       {HttpStatus::VariantAlsoNegotiates, "Variant Also Negotiates"},
+       {HttpStatus::InsufficientStorage, "Insufficient Storage"},
+       {HttpStatus::LoopDetected, "Loop Detected"},
+       {HttpStatus::NotExtended, "Not Extended"},
+       {HttpStatus::NetworkAuthenticationRequired, "Network Authentication Required"}}
   };
 
-  auto res = mapping.find(status_code);
-  if (res != mapping.end()) {
+  auto res = lower_bound(mapping.begin(), mapping.end(), status, [](const status_reason_mapping &m, HttpStatus s) {
+    auto [status_code, reason] = m;
+    return status_code < s;
+  });
+
+  if (res != mapping.end() && res->first == status) {
     return res->second;
   }
   return nullopt;
@@ -258,12 +268,12 @@ string HttpResponse::serialize() {
 }
 
 expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
-  string http_reason = http_status_to_reason(status).value_or("");
-  print(serialize_to, "HTTP/1.1 {} {}\r\n", status, http_reason);
+  string http_reason = string(http_status_to_reason(status_internal).value_or(""));
+  print(serialize_to, "HTTP/1.1 {} {}\r\n", (unsigned int)status_internal, http_reason);
   if (serialize_to.fail()) {
     return unexpected("failed to serialize respones");
   }
-  for (auto &&header : headers.get_all()) {
+  for (auto &&header : headers_internal.get_all()) {
     print(serialize_to, "{}: {}\r\n", header.first, header.second);
     if (serialize_to.fail()) {
       return unexpected("failed to serialize respones headers");
@@ -273,7 +283,7 @@ expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
   if (serialize_to.fail()) {
     return unexpected("failed to serialize response body");
   }
-  serialize_to.write(body.data(), body.size());
+  serialize_to.write(body_internal.data(), body_internal.size());
   if (serialize_to.fail()) {
     return unexpected("failed to serialize response body");
   }
@@ -281,5 +291,5 @@ expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
 }
 
 HttpResponse get_redirection_response(string target) {
-  return {{{{"Location", target}, {"Content-Length", "0"}, {"Connection", "close"}}}, {}, 301};
+  return {{{{"Location", target}, {"Content-Length", "0"}, {"Connection", "close"}}}, {}, HttpStatus::MovedPermanently};
 }

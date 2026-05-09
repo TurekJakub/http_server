@@ -22,9 +22,14 @@
 
 class HandlerError {
 public:
-  HandlerError(std::string message, unsigned short status = 500) : status(status), message(std::move(message)) {};
-  unsigned short status;
-  std::string message;
+  HandlerError(std::string message, HttpStatus status = HttpStatus::InternalServerError)
+      : status_internal(status), message_internal(std::move(message)) {};
+  inline const HttpStatus &status() { return status_internal; }
+  inline const std::string &message() { return message_internal; }
+
+private:
+  HttpStatus status_internal;
+  std::string message_internal;
 };
 template <typename T>
 concept handler = requires(T handler_func, const HttpRequest &req, HttpResponse &resp) {
@@ -48,15 +53,16 @@ private:
   using route_table = std::map<std::string, routing_table_record>;
 
   template <handler T> handler_function wrap_handler(T &&handler_func) {
-    return [handler = std::forward<T>(handler_func)](const HttpRequest &req, HttpResponse &res) mutable -> std::expected<void, HandlerError> {
-      using return_type = std::invoke_result_t<std::decay_t<T>, const HttpRequest &, HttpResponse &>;
-      if constexpr (std::is_same_v<return_type, void>) {
-        handler(req, res);
-        return {};
-      } else {
-        return handler(req, res);
-      }
-    };
+    return
+        [handler = std::forward<T>(handler_func)](const HttpRequest &req, HttpResponse &res) mutable -> std::expected<void, HandlerError> {
+          using return_type = std::invoke_result_t<std::decay_t<T>, const HttpRequest &, HttpResponse &>;
+          if constexpr (std::is_same_v<return_type, void>) {
+            handler(req, res);
+            return {};
+          } else {
+            return handler(req, res);
+          }
+        };
   }
 
   void invoke_handler(handler_function &handler, const HttpRequest &req, HttpResponse &res);
@@ -80,7 +86,7 @@ private:
   ssl_socket socket;
   asio::ip::tcp::endpoint endpoint;
   asio::streambuf buffer;
-  //asio::streambuf wr
+  // asio::streambuf wr
   Router &router;
   asio::strand<asio::io_context::executor_type> strand_executor;
 };
