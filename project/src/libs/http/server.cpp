@@ -1,7 +1,9 @@
 #include "server.h"
 #include "asio/bind_executor.hpp"
+#include "asio/error_code.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/streambuf.hpp"
+#include "asio/system_error.hpp"
 #include "asio/write.hpp"
 #include "http.h"
 #include <asio.hpp>
@@ -107,7 +109,11 @@ void Connection::write(string message, bool keepAlive) {
                 if (keepAlive) {
                   read();
                 } else {
-                  socket.shutdown();
+                  asio::error_code ec;
+                  if (socket.shutdown(ec)) {
+                    // This errors should be generally safe to ignore, but log them for debugging purposes 
+                    println(cerr, "Connection shutdown error: {}", ec.message());
+                  }
                 }
               }));
 }
@@ -251,6 +257,7 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
 
   res.status = err.status;
   res.headers.set("Content-Type", "text/html");
-  string body_content = format("<html><body><h1>{} {}</h1></body></html>", err.status, http_status_to_reason(err.status).value_or("Custom status"));
+  string body_content =
+      format("<html><body><h1>{} {}</h1></body></html>", err.status, http_status_to_reason(err.status).value_or("Custom status"));
   res.body = HttpBody{body_content.begin(), body_content.end()};
 }
