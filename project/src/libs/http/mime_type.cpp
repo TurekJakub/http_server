@@ -11,7 +11,7 @@ optional<string_view> mimetypes::get_mime_for_ext(const std::string &ext) {
     // Mapping for most common file extensions to corresponding MIME type
     // NOTE: when modifing this mapping keep items in alphabetical order 
     // doing otherwise would break binary seach bellow 
-  static constexpr std::array<MimeMapping, 27> mime_map = {
+  static constexpr std::array<MimeMapping, 28> mime_map = {
       {
         {".bin", "application/octet-stream"},
        {".css", "text/css"},
@@ -24,6 +24,7 @@ optional<string_view> mimetypes::get_mime_for_ext(const std::string &ext) {
        {".jpg", "image/jpeg"},
        {".js", "application/javascript"},
        {".json", "application/json"},
+       {".md", "text/markdown"},
        {".mp3", "audio/mpeg"},
        {".mp4", "video/mp4"},
        {".ods", "application/vnd.oasis.opendocument.spreadsheet"},
@@ -44,7 +45,7 @@ optional<string_view> mimetypes::get_mime_for_ext(const std::string &ext) {
   };
 
   auto it = lower_bound(mime_map.begin(), mime_map.end(), ext, [](const MimeMapping &e, string_view s) { return e.ext < s; });
-  if (it == mime_map.end()) {
+  if (it == mime_map.end() || it->ext != ext) {
     return nullopt;
   }
 
