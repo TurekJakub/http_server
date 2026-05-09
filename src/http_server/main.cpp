@@ -11,6 +11,7 @@
 
 using namespace std;
 using namespace asio;
+using namespace http_server::http;
 
 void test_handler(const HttpRequest &req, HttpResponse &resp) {
   auto _ = req;
@@ -32,7 +33,7 @@ int main() {
     return 1;
   }
 
-  HttpServer s(config_result.value());
+  HttpServer s(config_result.value().http_server_config);
   s.add_handler("/api", test_handler);
 
   if (config_result->static_files_source_dir.has_value()) {

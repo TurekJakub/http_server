@@ -17,8 +17,17 @@
 #include "http.h"
 
 using namespace std;
-using namespace strutils;
+using namespace http_server::strutils;
+using namespace http_server::http;
 
+namespace {
+#define unwrap(result)                                                                                                                     \
+  if (!result) {                                                                                                                           \
+    return unexpected(result.error());                                                                                                     \
+  }
+} // namespace
+
+namespace http_server::http {
 expected<HttpResponse, std::string> HttpParser::parse_response(std::istream &input) {
   string header_line;
   getline(input, header_line);
@@ -293,3 +302,4 @@ expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
 HttpResponse get_redirection_response(string target) {
   return {{{{"Location", target}, {"Content-Length", "0"}, {"Connection", "close"}}}, {}, HttpStatus::MovedPermanently};
 }
+} // namespace http_server::http

@@ -8,7 +8,7 @@
 using namespace std::filesystem;
 using namespace std;
 
-bool fsutils::is_child(const path &parent, const path &to_check) {
+bool http_server::fsutils::is_child(const path &parent, const path &to_check) {
   try {
     path parent_canonical = canonical(parent);
     path to_check_canonical = canonical(to_check);
@@ -22,7 +22,7 @@ bool fsutils::is_child(const path &parent, const path &to_check) {
   }
 }
 
-expected<void, string> fsutils::read_file_to_buffer(const path &file_path, vector<char> &buffer) {
+expected<void, string> http_server::fsutils::read_file_to_buffer(const path &file_path, vector<char> &buffer) {
   ifstream file(file_path, ios_base::binary);
 
   if (!file) {
@@ -36,7 +36,7 @@ expected<void, string> fsutils::read_file_to_buffer(const path &file_path, vecto
   return {};
 }
 
- std::expected<void, std::string> fsutils::save_buffer_to_file(const vector<char> &buffer, const path &save_to){
+ std::expected<void, std::string> http_server::fsutils::save_buffer_to_file(const vector<char> &buffer, const path &save_to){
   ofstream output_file(save_to, ios::binary);
   if (!output_file.is_open()) {
     return  unexpected(format("Failed to open target file: {}, when saving buffer to disk", save_to.string()));

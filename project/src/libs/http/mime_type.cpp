@@ -4,10 +4,9 @@
 #include <optional>
 #include <string_view>
 
-using namespace mimetypes;
 using namespace std;
 
-optional<string_view> mimetypes::get_mime_for_ext(const std::string &ext) {
+optional<string_view> http_server::mimetypes::get_mime_for_ext(const std::string &ext) {
     // Mapping for most common file extensions to corresponding MIME type
     // NOTE: when modifing this mapping keep items in alphabetical order 
     // doing otherwise would break binary seach bellow 
@@ -52,6 +51,6 @@ optional<string_view> mimetypes::get_mime_for_ext(const std::string &ext) {
   return it->mime_type;
 }
 
-optional<string_view> mimetypes::get_mime_for_file(const std::filesystem::path &file_path) {
+optional<string_view> http_server::mimetypes::get_mime_for_file(const std::filesystem::path &file_path) {
     return get_mime_for_ext(file_path.extension().string());
 }

@@ -12,7 +12,7 @@
 class StaticFileHandler {
     public:
     StaticFileHandler(std::string source_dir_path) : source_dir(source_dir_path) {};
-    std::expected<void, HandlerError> operator()(const HttpRequest &req, HttpResponse &res) const;
+    std::expected<void, http_server::http::HandlerError> operator()(const http_server::http::HttpRequest &req, http_server::http::HttpResponse &res) const;
     private:
     std::filesystem::path source_dir;
 };

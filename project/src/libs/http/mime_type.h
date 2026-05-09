@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-namespace mimetypes {
+namespace http_server::mimetypes {
 struct MimeMapping {
 public:
   std::string_view ext;
