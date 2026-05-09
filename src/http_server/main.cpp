@@ -1,4 +1,3 @@
-#include <cstddef>
 #include <format>
 #include <iostream>
 #include <print>
@@ -9,8 +8,6 @@
 #include "static_files_handler.h"
 #include <asio.hpp>
 #include <asio/ssl.hpp>
-#include <thread>
-#include <vector>
 
 using namespace std;
 using namespace asio;
@@ -35,7 +32,7 @@ int main() {
     return 1;
   }
 
-  HttpServer s(io_context, config_result.value());
+  HttpServer s(config_result.value());
   s.add_handler("/api", test_handler);
 
   if (config_result->static_files_source_dir.has_value()) {
@@ -44,18 +41,4 @@ int main() {
   }
 
   s.start();
-
-  const unsigned int thread_count = max(1u, config_result->max_thread_count);
-  vector<std::thread> thread_pool;
-  thread_pool.reserve(thread_count);
-
-  for (size_t i = 0; i < thread_count; ++i) {
-    thread_pool.emplace_back([&io_context]() { io_context.run(); });
-  }
-
-  for (auto &t : thread_pool) {
-    if (t.joinable()) {
-      t.join();
-    }
-  }
 }

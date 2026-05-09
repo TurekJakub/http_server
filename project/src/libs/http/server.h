@@ -2,6 +2,7 @@
 
 #define HTTP_SERVER_H
 
+#include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/ssl/context.hpp"
 #include "asio/ssl/stream.hpp"
@@ -15,8 +16,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "../../http_server/config_parser.h"
 
@@ -86,14 +89,13 @@ private:
   ssl_socket socket;
   asio::ip::tcp::endpoint endpoint;
   asio::streambuf buffer;
-  // asio::streambuf wr
   Router &router;
   asio::strand<asio::io_context::executor_type> strand_executor;
 };
 
 class HttpServer {
 public:
-  HttpServer(asio::io_context &io_context, ServerConfig config);
+  HttpServer(ServerConfig config);
   void start();
   template <handler T> void add_handler(std::string route, T &&handler_func, bool prefix_match = false) {
     router.add_handler(std::move(route), std::forward<T>(handler_func), prefix_match);
@@ -103,10 +105,12 @@ public:
 private:
   void accept_connection();
 
-  asio::io_context &context;
+  asio::io_context context;
+  std::vector<std::thread> thread_pool;
   asio::ip::tcp::acceptor acceptor;
   asio::ssl::context ssl_context;
   unsigned short port;
+  unsigned int max_concurency;
   Router router;
 };
 
