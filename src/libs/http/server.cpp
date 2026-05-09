@@ -167,9 +167,9 @@ void Connection::redirect_to_https() {
 }
 // clang-format on
 
-HttpServer::HttpServer(io_context &io_context, ServerConfig config)
-    : context(io_context), acceptor(io_context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server),
-      port(config.port), router() {
+HttpServer::HttpServer(ServerConfig config)
+    :context(config.max_thread_count), acceptor(context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server),
+      port(config.port), max_concurency(config.max_thread_count), router() {
   try {
     using namespace asio::ssl;
     ssl_context.set_password_callback([](size_t, context_base::password_purpose) {
@@ -190,6 +190,19 @@ HttpServer::HttpServer(io_context &io_context, ServerConfig config)
 void HttpServer::start() {
   println("Server listening on port {}", port);
   accept_connection();
+
+  const unsigned int thread_count = max(1u, max_concurency);
+  thread_pool.reserve(thread_count);
+
+  for (size_t i = 0; i < thread_count; ++i) {
+    thread_pool.emplace_back([this]() { this->context.run(); });
+  }
+
+  for (auto &t : thread_pool) {
+    if (t.joinable()) {
+      t.join();
+    }
+  }
 }
 
 void HttpServer::accept_connection() {
