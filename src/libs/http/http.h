@@ -13,14 +13,7 @@
 #include <variant>
 #include <vector>
 
-#define unwrap(result)                                                                                                                     \
-  if (!result) {                                                                                                                           \
-    return unexpected(result.error());                                                                                                     \
-  }
-
-inline static constexpr unsigned char TLS_HANDSHAKE_IDENTIFIER_BYTE = 0x16;
-inline static std::string HTTP_BODY_DELIMITER = "\r\n\r\n";
-
+namespace http_server::http {
 struct GET {};
 struct POST {};
 struct PUT {};
@@ -159,5 +152,5 @@ enum class HttpStatus : unsigned short {
   NotExtended = 510,
   NetworkAuthenticationRequired = 511
 };
-
+}
 #endif

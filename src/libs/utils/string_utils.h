@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace strutils {
+namespace http_server::strutils {
     std::vector<std::string> split_n(std::string s, const std::string &del, int count);
     std::vector<std::string> split(std::string s, const std::string &del);
     void trim(std::string &str);

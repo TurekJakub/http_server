@@ -4,7 +4,7 @@
 
 using namespace std;
 
-vector<string> strutils::split_n(string s, const string &del, int count) {
+vector<string> http_server::strutils::split_n(string s, const string &del, int count) {
   vector<string> tokens;
   size_t pos = s.find(del);
   int i = 0;
@@ -22,11 +22,11 @@ vector<string> strutils::split_n(string s, const string &del, int count) {
   return tokens;
 }
 
-vector<string> strutils::split(string s, const string &del){
+vector<string> http_server::strutils::split(string s, const string &del){
     return strutils::split_n(std::move(s), del, -1);
 }
 
-void strutils::trim(string &str) {
+void http_server::strutils::trim(string &str) {
   const char *whitespaces = " \t\n\r\f\v";
   str.erase(str.find_last_not_of(whitespaces) + 1);
   str.erase(0, str.find_first_not_of(whitespaces));

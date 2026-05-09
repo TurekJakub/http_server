@@ -2,27 +2,17 @@
 
 #define HTTP_SERVER_H
 
-#include "asio/io_context.hpp"
-#include "asio/ip/tcp.hpp"
-#include "asio/ssl/context.hpp"
-#include "asio/ssl/stream.hpp"
-#include "asio/strand.hpp"
-#include "asio/streambuf.hpp"
-#include "http.h"
-#include <algorithm>
-#include <asio.hpp>
 #include <concepts>
 #include <expected>
 #include <functional>
 #include <memory>
 #include <string>
-#include <thread>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
-#include "../../http_server/config_parser.h"
+#include "http.h"
 
+namespace http_server::http {
 class HandlerError {
 public:
   HandlerError(std::string message, HttpStatus status = HttpStatus::InternalServerError)
@@ -34,27 +24,38 @@ private:
   HttpStatus status_internal;
   std::string message_internal;
 };
+
 template <typename T>
 concept handler = requires(T handler_func, const HttpRequest &req, HttpResponse &resp) {
   { handler_func(req, resp) } -> std::same_as<void>;
 } || requires(T handler_func, const HttpRequest &req, HttpResponse &resp) {
   { handler_func(req, resp) } -> std::same_as<std::expected<void, HandlerError>>;
 };
-class Router {
+
+using handler_function = std::move_only_function<std::expected<void, HandlerError>(const HttpRequest &, HttpResponse &)>;
+
+class HttpServerConfig {
 public:
-  using handler_function = std::move_only_function<std::expected<void, HandlerError>(const HttpRequest &, HttpResponse &)>;
-  Router();
-  template <handler T> Router(T &&default_handler) : routing_table(), default_handler(default_handler(std::forward<T>(default_handler))) {};
-  void route(HttpRequest &req, HttpResponse &resp);
+  unsigned short port = {443};
+  std::string cert_path = {""};
+  std::string private_key_path = {""};
+  unsigned int max_thread_count = {1};
+};
+
+class HttpServer {
+public:
+  HttpServer(HttpServerConfig config);
+  ~HttpServer();
+
+  void start();
   template <handler T> void add_handler(std::string route, T &&handler_func, bool prefix_match = false) {
-    routing_table.insert_or_assign(std::move(route), std::make_pair(wrap_handler(std::forward<T>(handler_func)), prefix_match));
+    do_add_handler(std::move(route), wrap_handler(std::forward<T>(handler_func)), prefix_match);
+  };
+  template <handler T> void set_default_handler(T &&default_handler) {
+    do_set_default_handler(wrap_handler(std::forward<T>(default_handler)));
   }
-  template <handler T> void set_default_handler(T &&handler) { default_handler = wrap_handler(std::forward<T>(handler)); }
 
 private:
-  using routing_table_record = std::pair<handler_function, bool>;
-  using route_table = std::map<std::string, routing_table_record>;
-
   template <handler T> handler_function wrap_handler(T &&handler_func) {
     return
         [handler = std::forward<T>(handler_func)](const HttpRequest &req, HttpResponse &res) mutable -> std::expected<void, HandlerError> {
@@ -68,50 +69,12 @@ private:
         };
   }
 
-  void invoke_handler(handler_function &handler, const HttpRequest &req, HttpResponse &res);
+  void do_add_handler(std::string route, handler_function handler, bool prefix_match);
+  void do_set_default_handler(handler_function handler);
 
-  route_table routing_table;
-  handler_function default_handler;
+  class Impl;
+
+  std::unique_ptr<Impl> impl;
 };
-class Connection : public std::enable_shared_from_this<Connection> {
-public:
-  typedef asio::ssl::stream<asio::ip::tcp::socket> ssl_socket;
-  Connection(ssl_socket socket, Router &router, asio::io_context &io_context)
-      : socket(std::move(socket)), router(router), strand_executor(asio::make_strand(io_context)) {};
-  void start();
-
-private:
-  void read();
-  void handshake();
-  void write(std::shared_ptr<std::string> message, bool keepAlive);
-  void redirect_to_https();
-
-  ssl_socket socket;
-  asio::ip::tcp::endpoint endpoint;
-  asio::streambuf buffer;
-  Router &router;
-  asio::strand<asio::io_context::executor_type> strand_executor;
-};
-
-class HttpServer {
-public:
-  HttpServer(ServerConfig config);
-  void start();
-  template <handler T> void add_handler(std::string route, T &&handler_func, bool prefix_match = false) {
-    router.add_handler(std::move(route), std::forward<T>(handler_func), prefix_match);
-  };
-  template <handler T> void set_default_handler(T &&default_handler) { router.set_default_handler(std::move(default_handler)); }
-
-private:
-  void accept_connection();
-
-  asio::io_context context;
-  std::vector<std::thread> thread_pool;
-  asio::ip::tcp::acceptor acceptor;
-  asio::ssl::context ssl_context;
-  unsigned short port;
-  unsigned int max_concurency;
-  Router router;
-};
-
+} // namespace http
 #endif

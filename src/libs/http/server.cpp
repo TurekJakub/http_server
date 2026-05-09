@@ -2,6 +2,7 @@
 #include "asio/bind_executor.hpp"
 #include "asio/error_code.hpp"
 #include "asio/ip/tcp.hpp"
+#include "asio/ssl/stream.hpp"
 #include "asio/streambuf.hpp"
 #include "asio/system_error.hpp"
 #include "asio/write.hpp"
@@ -20,6 +21,49 @@
 using namespace asio::ip;
 using namespace asio;
 using namespace std;
+using namespace http_server::http;
+
+namespace {
+ constexpr unsigned char TLS_HANDSHAKE_IDENTIFIER_BYTE = 0x16;
+ constexpr std::string HTTP_BODY_DELIMITER = "\r\n\r\n";
+class Router {
+public:
+  Router();
+  Router(handler_function default_handler) : routing_table(), default_handler(std::move(default_handler)) {};
+  void route(HttpRequest &req, HttpResponse &resp);
+  void add_handler(string route, handler_function handler_func, bool prefix_match = false);
+  void set_default_handler(handler_function handler);
+
+private:
+  using routing_table_record = pair<handler_function, bool>;
+  using route_table = map<string, routing_table_record>;
+
+  void invoke_handler(handler_function &handler, const HttpRequest &req, HttpResponse &res);
+
+  route_table routing_table;
+  handler_function default_handler;
+};
+
+class Connection : public enable_shared_from_this<Connection> {
+public:
+  using ssl_socket = ssl::stream<tcp::socket>;
+  Connection(ssl_socket socket, Router &router, io_context &io_context)
+      : socket(std::move(socket)), router(router), strand_executor(make_strand(io_context)) {};
+  void start();
+
+private:
+  void read();
+  void handshake();
+  void write(shared_ptr<string> message, bool keepAlive);
+  void redirect_to_https();
+
+  ssl_socket socket;
+  tcp::endpoint endpoint;
+  asio::streambuf buffer;
+  Router &router;
+  strand<io_context::executor_type> strand_executor;
+};
+} // namespace
 
 void Connection::start() {
   try {
@@ -167,37 +211,59 @@ void Connection::redirect_to_https() {
 }
 // clang-format on
 
-HttpServer::HttpServer(ServerConfig config)
-    :context(config.max_thread_count), acceptor(context, tcp::endpoint(tcp::v4(), config.port)), ssl_context(ssl::context::tlsv13_server),
-      port(config.port), max_concurency(config.max_thread_count), router() {
-  try {
-    using namespace asio::ssl;
-    ssl_context.set_password_callback([](size_t, context_base::password_purpose) {
-      const char *pw = getenv("PRIVATE_KEY_PASS");
-      if (pw) {
-        return pw;
-      }
-      return "";
-    });
+namespace http_server::http {
+  class HttpServer::Impl {
+    public:
+    Impl(HttpServerConfig config)
+      : router(), context(config.max_thread_count), acceptor(context, tcp::endpoint(tcp::v4(), config.port)),
+      ssl_context(ssl::context::tlsv13_server), port(config.port), max_concurency(config.max_thread_count) {
+    try {
+      using namespace asio::ssl;
+      ssl_context.set_password_callback([](size_t, context_base::password_purpose) {
+        const char *pw = getenv("PRIVATE_KEY_PASS");
+        if (pw) {
+          return pw;
+        }
+        return "";
+      });
 
-    ssl_context.use_certificate_file(config.cert_path, context::pem);
-    ssl_context.use_private_key_file(config.private_key_path, context::pem);
-  } catch (const exception &err) {
-    print(cerr, "Error occurred during TLS configuration, err: {}\n", err.what());
+      ssl_context.use_certificate_file(config.cert_path, context::pem);
+      ssl_context.use_private_key_file(config.private_key_path, context::pem);
+    } catch (const exception &err) {
+      print(cerr, "Error occurred during TLS configuration, err: {}\n", err.what());
+    }
   }
+  
+  void start();
+  
+  Router router;
+  
+  private:
+  void accept_connection();
+  
+  asio::io_context context;
+  std::vector<std::thread> thread_pool;
+  asio::ip::tcp::acceptor acceptor;
+  asio::ssl::context ssl_context;
+  unsigned short port;
+  unsigned int max_concurency;
 };
 
-void HttpServer::start() {
+HttpServer::HttpServer(HttpServerConfig config) : impl(make_unique<Impl>(config)) {};
+
+HttpServer::~HttpServer() = default;
+
+void HttpServer::Impl::start() {
   println("Server listening on port {}", port);
   accept_connection();
-
+  
   const unsigned int thread_count = max(1u, max_concurency);
   thread_pool.reserve(thread_count);
-
+  
   for (size_t i = 0; i < thread_count; ++i) {
     thread_pool.emplace_back([this]() { this->context.run(); });
   }
-
+  
   for (auto &t : thread_pool) {
     if (t.joinable()) {
       t.join();
@@ -205,19 +271,28 @@ void HttpServer::start() {
   }
 }
 
-void HttpServer::accept_connection() {
+void HttpServer::Impl::accept_connection() {
   acceptor.async_accept([this](const asio::error_code &ec, asio::ip::tcp::socket socket) {
     if (ec) {
       print(cerr, "Failed to establish connection, error: {}", ec.message());
-
+      
     } else {
-
+      
       println("New connection accepted");
       make_shared<Connection>(Connection::ssl_socket(std::move(socket), ssl_context), router, context)->start();
     }
-
+    
     accept_connection();
   });
+}
+
+void HttpServer::start() { impl->start(); }
+
+void HttpServer::do_add_handler(string route, handler_function handler, bool prefix_match) {
+  impl->router.add_handler(std::move(route), std::move(handler), prefix_match);
+}
+
+void HttpServer::do_set_default_handler(handler_function handler) { impl->router.set_default_handler(std::move(handler)); }
 }
 
 // clang-format off
@@ -274,3 +349,9 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
                                http_status_to_reason(err.status()).value_or("Custom status"));
   res.body() = HttpBody{body_content.begin(), body_content.end()};
 }
+
+void Router::add_handler(string route, handler_function handler_func, bool prefix_match) {
+  routing_table.insert_or_assign(std::move(route), make_pair(std::move(handler_func), prefix_match));
+}
+
+void Router::set_default_handler(handler_function handler) { default_handler = std::move(handler); }
