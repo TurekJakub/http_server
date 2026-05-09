@@ -13,6 +13,7 @@ namespace fsutils {
     inline bool is_root_dir_path(const std::filesystem::path& path) {
         return !path.empty() && path.relative_path().empty() && path.has_root_directory();
     };
+    std::expected<void, std::string> save_buffer_to_file(const std::vector<char> &buffer, const std::filesystem::path &save_to);
 }
 
 #endif
