@@ -6,6 +6,7 @@
 #include "asio/ssl/context.hpp"
 #include "asio/ssl/stream.hpp"
 #include "asio/strand.hpp"
+#include "asio/streambuf.hpp"
 #include "http.h"
 #include <algorithm>
 #include <asio.hpp>
@@ -73,12 +74,13 @@ public:
 private:
   void read();
   void handshake();
-  void write(std::string message, bool keepAlive);
+  void write(std::shared_ptr<std::string> message, bool keepAlive);
   void redirect_to_https();
 
   ssl_socket socket;
   asio::ip::tcp::endpoint endpoint;
   asio::streambuf buffer;
+  //asio::streambuf wr
   Router &router;
   asio::strand<asio::io_context::executor_type> strand_executor;
 };

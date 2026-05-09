@@ -251,8 +251,7 @@ string HttpResponse::serialize() {
   stringstream buffer;
   auto result = serialize(buffer);
   if (!result.has_value()) {
-    // Just return empty string in case of error, cause this is mostly for debuging
-    // pruposes and stringstream is unlikely to fail
+    // Just return empty string in case of error, cause stringstream is unlikely to fail
     return "";
   }
   return buffer.str();
