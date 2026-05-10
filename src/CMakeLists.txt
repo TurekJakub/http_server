@@ -138,6 +138,10 @@ add_executable(http_server
     libs/http/server.cpp
     http_server/config_parser.h
     http_server/config_parser.cpp
+    http_server/handlers/static_files_handler.h
+    http_server/handlers/static_files_handler.cpp
+    http_server/handlers/default_handler.h
+    http_server/handlers/default_handler.cpp
     http_server/static_files_handler.h
     http_server/static_files_handler.cpp
     libs/utils/fs_utils.h

@@ -1,14 +1,18 @@
-#include "static_files_handler.h"
-#include "../libs/http/mime_type.h"
-#include "../libs/utils/fs_utils.h"
 #include <filesystem>
 #include <format>
 #include <string>
+
+#include "static_files_handler.h"
+#include "../../libs/utils/fs_utils.h"
 
 using namespace std;
 using namespace http_server::http;
 
 expected<void, HandlerError> StaticFileHandler::operator()(const HttpRequest &req, HttpResponse &res) const {
+  if(req.method != GET){
+      return unexpected(HandlerError("Only GET requests are allowed", http_server::http::HttpStatus::MethodNotAllowed));
+  }
+
   filesystem::path path = (source_dir / filesystem::path(req.requested_url).relative_path()).lexically_normal();
 
   if (filesystem::is_directory(path)) {
@@ -31,17 +35,10 @@ expected<void, HandlerError> StaticFileHandler::operator()(const HttpRequest &re
         format("Requested file does not exist - it is dir, dir path: {}, requested resource: {}", path.string(), req.requested_url), HttpStatus::NotFound});
   }
 
-  res.status() = HttpStatus::OK;
-  string mime(http_server::mimetypes::get_mime_for_file(path).value_or("application/octet-stream"));
-  res.headers().set("Content-Type", mime);
-  res.headers().set("X-Content-Type-Options", "nosniff");
-
-  auto read_res = http_server::fsutils::read_file_to_buffer(path, res.body());
-  if (!read_res.has_value()) {
-    return unexpected(HandlerError(read_res.error()));
+  auto server_file_result = serve_file(path.string(), res);
+  if (!server_file_result.has_value()) {
+    return unexpected(HandlerError(server_file_result.error()));
   }
-
-  res.headers().set("Content-Length", to_string(res.body().size()));
 
   return {};
 }

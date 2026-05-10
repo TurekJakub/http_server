@@ -5,8 +5,8 @@ private_key_path = "../resources/secret/key.pem"
 
 [served_content]
 static_files_source_dir = "../resources/static"
-http_404_error_page = ""
+http_404_error_page = "../resources/static/custom-404-page.html"
 
 [performance]
 # Set to 0 or omit completely to use hw threads count returned by std::thread::hardware_concurrency() 
-max_thread_count = 2
+max_thread_count = 0

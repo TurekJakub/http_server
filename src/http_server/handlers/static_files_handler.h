@@ -6,8 +6,8 @@
 #include <filesystem>
 #include <string>
 
-#include "../libs/http/http.h"
-#include "../libs/http/server.h"
+#include "../../libs/http/http.h"
+#include "../../libs/http/server.h"
 
 class StaticFileHandler {
     public:
