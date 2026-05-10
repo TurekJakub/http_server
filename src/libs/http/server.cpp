@@ -330,24 +330,29 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
     return;
   }
 
-  auto handler_result = handler(req, res);
-  if (handler_result.has_value()) {
-    return;
-  }
-
-  HandlerError err = handler_result.error();
-
-  if (err.status() == http_server::http::HttpStatus::NotFound) {
-    auto default_res = default_handler(req, res);
-    if (default_res.has_value()) {
+  try {
+    auto handler_result = handler(req, res);
+    if (handler_result.has_value()) {
       return;
     }
-    println(cerr, "Error occurred while invoking default handler. error: {}", default_res.error().message());
+
+    HandlerError err = handler_result.error();
+
+    if (err.status() == http_server::http::HttpStatus::NotFound) {
+      auto default_res = default_handler(req, res);
+      if (default_res.has_value()) {
+        return;
+      }
+      println(cerr, "Error occurred while invoking default handler. error: {}", default_res.error().message());
+    }
+
+    println(cerr, "Error occurred while invoking handler for route: {}, error: {}", req.requested_url, err.message());
+
+    fill_standard_reason_response_page(res, err.status());
+  } catch (...) {
+    println(cerr, "Unexpected exception occurred when executing handler for route: {}", req.requested_url);
+    fill_standard_reason_response_page(res, HttpStatus::InternalServerError);
   }
-
-  println(cerr, "Error occurred while invoking handler for route: {}, error: {}", req.requested_url, err.message());
-
-  fill_standard_reason_response_page(res, err.status());
 }
 
 void Router::add_handler(string route, handler_function handler_func, bool prefix_match) {
