@@ -351,6 +351,7 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
   println(cerr, "Error occurred while invoking handler for route: {}, error: {}", req.requested_url, err.message());
 
   res.status() = err.status();
+  res.headers().clear();
   res.headers().set("Content-Type", "text/html");
   string body_content = format("<!DOCTYPE html><html><body><h1>{} {}</h1></body></html>", (unsigned short)err.status(),
                                http_status_to_reason(err.status()).value_or("Custom status"));

@@ -40,6 +40,7 @@ public:
   void set(std::string header, std::string value);
   std::optional<std::string> get(std::string header) const;
   std::ranges::subrange<HttpHeader::const_iterator> get_all();
+  void clear();
 
 private:
   std::map<std::string, std::string> headers;
@@ -48,7 +49,8 @@ private:
 class HttpResponse {
 public:
   HttpResponse() {};
-  HttpResponse(HttpHeaders headers, HttpBody body, HttpStatus status) : headers_internal(std::move(headers)), body_internal(body), status_internal(status) {}
+  HttpResponse(HttpHeaders headers, HttpBody body, HttpStatus status)
+      : headers_internal(std::move(headers)), body_internal(body), status_internal(status) {}
   std::string serialize();
   std::expected<void, std::string> serialize(std::ostream &serialize_to);
 
