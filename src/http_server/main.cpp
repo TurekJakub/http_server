@@ -3,43 +3,22 @@
 #include <print>
 #include <string>
 
-#include "../libs/http/server.h"
-#include "config_parser.h"
-#include "static_files_handler.h"
-#include <asio.hpp>
-#include <asio/ssl.hpp>
+#include "static_file_server.h"
 
 using namespace std;
-using namespace asio;
 using namespace http_server::http;
 
-void test_handler(const HttpRequest &req, HttpResponse &resp) {
-  auto _ = req;
-  resp.status() = HttpStatus::OK;
-  resp.headers().set("Content-Type", "text/html");
-  resp.headers().set("Content-Length", "64");
-  string body_val = "<!doctype html><html><body><h1>Hello, World !</h1></body></html>";
-  resp.body() = HttpBody{body_val.begin(), body_val.end()};
-}
+int main(int argc, char **argv) {
+  vector<string> args(argv + 1, argv + argc);
 
-int main() {
-  io_context io_context;
+  auto server_init_result = StaticFileServer::init(args);
 
-  auto guard = make_work_guard(io_context);
-
-  auto config_result = ServerConfig::parse_from_file("../resources/config.toml");
-  if (!config_result.has_value()) {
-    println(cerr, "{}", config_result.error());
+  if (!server_init_result.has_value()) {
+    println(cerr, "{}", server_init_result.error());
     return 1;
   }
 
-  HttpServer s(config_result.value().http_server_config);
-  s.add_handler("/api", test_handler);
+  server_init_result->serve();
 
-  if (config_result->static_files_source_dir.has_value()) {
-    StaticFileHandler handler(*(config_result->static_files_source_dir));
-    s.add_handler("/", handler, true);
-  }
-
-  s.start();
+  return 0;
 }

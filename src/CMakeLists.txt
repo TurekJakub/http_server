@@ -142,8 +142,8 @@ add_executable(http_server
     http_server/handlers/static_files_handler.cpp
     http_server/handlers/default_handler.h
     http_server/handlers/default_handler.cpp
-    http_server/static_files_handler.h
-    http_server/static_files_handler.cpp
+    http_server/static_file_server.h
+    http_server/static_file_server.cpp   
     libs/utils/fs_utils.h
     libs/utils/fs_utils.cpp
     libs/http/mime_type.h
