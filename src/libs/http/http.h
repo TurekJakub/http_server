@@ -168,5 +168,8 @@ enum class HttpStatus : unsigned short {
   NotExtended = 510,
   NetworkAuthenticationRequired = 511
 };
-}
+
+std::expected<void, std::string> serve_file(const std::string &file_path, HttpResponse &res);
+
+} // namespace http_server::http
 #endif

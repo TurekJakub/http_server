@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <expected>
+#include <filesystem>
 #include <istream>
 #include <optional>
 #include <print>
@@ -13,8 +14,10 @@
 #include <system_error>
 #include <utility>
 
+#include "../utils/fs_utils.h"
 #include "../utils/string_utils.h"
 #include "http.h"
+#include "mime_type.h"
 
 using namespace std;
 using namespace http_server::strutils;
@@ -291,6 +294,7 @@ string HttpResponse::serialize() {
 }
 
 expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
+  headers_internal.upsert("Content-Length", to_string(body_internal.size()));
   string http_reason = string(http_status_to_reason(status_internal).value_or(""));
   print(serialize_to, "HTTP/1.1 {} {}\r\n", (unsigned int)status_internal, http_reason);
   if (serialize_to.fail()) {
@@ -316,4 +320,21 @@ expected<void, string> HttpResponse::serialize(ostream &serialize_to) {
 HttpResponse get_redirection_response(string target) {
   return {{{{"Location", target}, {"Content-Length", "0"}, {"Connection", "close"}}}, {}, HttpStatus::MovedPermanently};
 }
+
+expected<void, string> serve_file(const string &file_path, HttpResponse &res) {
+  std::filesystem::path file(file_path);
+  res.status() = HttpStatus::OK;
+  string mime(mimetypes::get_mime_for_file(file).value_or("application/octet-stream"));
+  res.headers().set("Content-Type", mime);
+  res.headers().set("Connection", "keep-alive");
+  res.headers().set("X-Content-Type-Options", "nosniff");
+
+  auto read_res = http_server::fsutils::read_file_to_buffer(file, res.body());
+  if (!read_res.has_value()) {
+    return unexpected(read_res.error());
+  }
+
+  return {};
+}
+
 } // namespace http_server::http
