@@ -340,6 +340,14 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
 
   HandlerError err = handler_result.error();
 
+  if (err.status() == http_server::http::HttpStatus::NotFound) {
+    auto default_res = default_handler(req, res);
+    if (default_res.has_value()) {
+      return;
+    }
+    println(cerr, "Error occurred while invoking default handler. error: {}", default_res.error().message());
+  }
+
   println(cerr, "Error occurred while invoking handler for route: {}, error: {}", req.requested_url, err.message());
 
   res.status() = err.status();
