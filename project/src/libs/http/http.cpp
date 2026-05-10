@@ -163,9 +163,9 @@ expected<HttpBody, string> HttpParser::parse_body(istream &input, const HttpHead
   return HttpBody(0);
 }
 
-void HttpHeaders::set(string header, string value) { headers.insert(make_pair(header, value)); }
+void HttpHeaders::set(string header, string value) { headers.insert(make_pair(std::move(header), std::move(value))); }
 
-ranges::subrange<HttpHeader::const_iterator> HttpHeaders::get_all() { return ranges::subrange(headers.begin(), headers.end()); }
+void HttpHeaders::upsert(string header,string value) {headers.insert_or_assign(std::move(header), std::move(value));}
 
 optional<string> HttpHeaders::get(string header) const {
   auto it = headers.find(header);
@@ -173,6 +173,12 @@ optional<string> HttpHeaders::get(string header) const {
     return nullopt;
   }
   return optional(it->second);
+}
+
+ranges::subrange<HttpHeader::const_iterator> HttpHeaders::get_all() { return ranges::subrange(headers.begin(), headers.end()); }
+
+void HttpHeaders::clear(){
+  headers.clear();
 }
 
 HttpMethod str_to_method(string method_str) {
