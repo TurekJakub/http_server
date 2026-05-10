@@ -337,4 +337,13 @@ expected<void, string> serve_file(const string &file_path, HttpResponse &res) {
   return {};
 }
 
+void fill_standard_reason_response_page(HttpResponse &res,  HttpStatus status){
+  res.headers().clear();
+  res.status() = status;
+  res.headers().set("Content-Type", "text/html");
+  string body_content = format("<!DOCTYPE html><html><body><h1>{} {}</h1></body></html>", (unsigned short)status,
+                               http_status_to_reason(status).value_or("Custom status"));
+  res.body() = HttpBody{body_content.begin(), body_content.end()};
+}
+
 } // namespace http_server::http

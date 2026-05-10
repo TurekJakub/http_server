@@ -297,10 +297,7 @@ void HttpServer::do_set_default_handler(handler_function handler) { impl->router
 // clang-format off
 Router::Router(): routing_table(), default_handler([](const HttpRequest &req, HttpResponse &resp) -> std::expected<void, HandlerError>{
   auto &_ = req;
-  resp.status() = HttpStatus::OK;
-  resp.headers().set("Content-Type", "text/html");
-  string body_content = "<!DOCTYPE html><html><body><h1>404 Not Found</h1></body></html>";
-  resp.body() = HttpBody{body_content.begin(), body_content.end()};
+  fill_standard_reason_response_page(resp, HttpStatus::NotFound);
   return {};
   }) {}
 // clang-format on
@@ -350,12 +347,7 @@ void Router::invoke_handler(handler_function &handler, const HttpRequest &req, H
 
   println(cerr, "Error occurred while invoking handler for route: {}, error: {}", req.requested_url, err.message());
 
-  res.status() = err.status();
-  res.headers().clear();
-  res.headers().set("Content-Type", "text/html");
-  string body_content = format("<!DOCTYPE html><html><body><h1>{} {}</h1></body></html>", (unsigned short)err.status(),
-                               http_status_to_reason(err.status()).value_or("Custom status"));
-  res.body() = HttpBody{body_content.begin(), body_content.end()};
+  fill_standard_reason_response_page(res, err.status());
 }
 
 void Router::add_handler(string route, handler_function handler_func, bool prefix_match) {

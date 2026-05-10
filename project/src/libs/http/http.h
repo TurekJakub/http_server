@@ -104,6 +104,9 @@ private:
 std::optional<std::string_view> http_status_to_reason(HttpStatus status);
 HttpResponse get_redirection_response(std::string target);
 
+void fill_standard_reason_response_page(HttpResponse &res, HttpStatus status);
+std::expected<void, std::string> serve_file(const std::string &file_path, HttpResponse &res);
+
 enum class HttpStatus : unsigned short {
   Continue = 100,
   SwitchingProtocols = 101,
@@ -168,8 +171,5 @@ enum class HttpStatus : unsigned short {
   NotExtended = 510,
   NetworkAuthenticationRequired = 511
 };
-
-std::expected<void, std::string> serve_file(const std::string &file_path, HttpResponse &res);
-
 } // namespace http_server::http
 #endif
