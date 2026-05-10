@@ -190,6 +190,14 @@ HttpMethod str_to_method(string method_str) {
   return method_str;
 }
 
+bool operator==(const HttpMethod& method, const std::string& str) {
+  auto* val = std::get_if<std::string>(&method);
+  if (val) {
+    return *val == str;
+  }
+  return false;
+}
+
 optional<string_view> http_status_to_reason(HttpStatus status) {
   using status_reason_mapping = pair<HttpStatus, string_view>;
   static constexpr array<status_reason_mapping, 62> mapping = {

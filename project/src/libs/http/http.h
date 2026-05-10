@@ -8,22 +8,35 @@
 #include <ranges>
 #include <string>
 #include <string_view>
-#include <sys/types.h>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
 namespace http_server::http {
-struct GET {};
-struct POST {};
-struct PUT {};
-struct DELETE {};
-struct PATCH {};
+struct Get {};
+struct Post {};
+struct Put {};
+struct Delete {};
+struct Patch {};
 
-typedef std::variant<GET, POST, PUT, DELETE, PATCH, std::string> HttpMethod;
+constexpr Get GET;
+constexpr Post POST;
+constexpr Put PUT;
+constexpr Delete DELETE;
+constexpr Patch PATCH;
+
+using HttpMethod = std::variant<Get, Post, Put, Delete, Patch, std::string>;
+
+template <typename T>
+concept http_method = []<typename... U>(std::variant<U...> *) {
+  return (std::is_same_v<T, U> || ...) && !std::is_same_v<T, std::string>;
+}((HttpMethod *)nullptr);
+
+template <http_method T> bool operator==(const HttpMethod &method, const T &) { return std::holds_alternative<T>(method); }
 
 inline constexpr std::array<std::pair<std::string_view, HttpMethod>, 5> method_map = {
-    {{"GET", GET{}}, {"POST", POST{}}, {"PUT", PUT{}}, {"DELETE", DELETE{}}, {"PATCH", PATCH{}}}
+    {{"GET", GET}, {"POST", POST}, {"PUT", PUT}, {"DELETE", DELETE}, {"PATCH", PATCH}}
 };
 
 HttpMethod str_to_method(std::string method_str);
@@ -38,6 +51,7 @@ public:
   HttpHeaders() = default;
   HttpHeaders(std::map<std::string, std::string> headers) : headers(std::move(headers)) {};
   void set(std::string header, std::string value);
+  void upsert(std::string header, std::string value);
   std::optional<std::string> get(std::string header) const;
   std::ranges::subrange<HttpHeader::const_iterator> get_all();
   void clear();
@@ -57,8 +71,8 @@ public:
   template <typename Self> auto &&status(this Self &&self) { return std::forward<Self>(self).status_internal; }
   template <typename Self> auto &&headers(this Self &&self) { return std::forward<Self>(self).headers_internal; }
   template <typename Self> auto &&body(this Self &&self) { return std::forward<Self>(self).body_internal; }
-  
-  private:
+
+private:
   HttpHeaders headers_internal;
   HttpBody body_internal;
   HttpStatus status_internal;
