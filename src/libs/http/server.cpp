@@ -277,8 +277,7 @@ void HttpServer::Impl::accept_connection() {
       print(cerr, "Failed to establish connection, error: {}", ec.message());
 
     } else {
-
-      println("New connection accepted");
+      socket.set_option(tcp::no_delay(true));
       make_shared<Connection>(Connection::ssl_socket(std::move(socket), ssl_context), router, context)->start();
     }
 
