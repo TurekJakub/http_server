@@ -1,4 +1,4 @@
-# Obsluha příchozích požadavků
+# Obsluha příchozích spojení
 
 Následná kapitola pojednává o navazování a obsluze příchozích spojení serverem.
 

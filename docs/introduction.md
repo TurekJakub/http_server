@@ -24,4 +24,4 @@ Posledním z klíčových problému implementace je pak navržení samotného fr
 
 Nyní již přejděme k popisu navazovaní a obsluhy spojení, o kterém pojednává následující kapitola.
 
-[<-- Obsah](index.md) <div style="margin-left:auto; margin-right:0px">[Implementace HTTP protokolu -->](network_connections.md)</div></div>
+[<-- Obsah](index.md) <div style="margin-left:auto; margin-right:0px">[Obsluha příchozích spojení -->](network_connections.md)</div></div>
