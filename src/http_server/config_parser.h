@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-#include "../libs/http/server.h"
+#include <http_server/server.h>
 
 class ServerConfig {
 public:

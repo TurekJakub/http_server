@@ -87,13 +87,6 @@ ExternalProject_Add(asio
 ExternalProject_Get_Property(asio SOURCE_DIR)
 set(ASIO_SOURCE_DIR ${SOURCE_DIR})
 
-FetchContent_Declare(
-    tomlplusplus
-    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG        v3.4.0
-)
-FetchContent_MakeAvailable(tomlplusplus)
-
 set(OPENSSL_DIR ${CMAKE_BINARY_DIR}/openssl-install)
 get_filename_component(OPENSSL_DIR_ABS ${OPENSSL_DIR} ABSOLUTE)
 
@@ -127,45 +120,57 @@ add_library(OpenSSL_Crypto STATIC IMPORTED)
 set_property(TARGET OpenSSL_Crypto PROPERTY IMPORTED_LOCATION ${OPEN_SSL_SOURCE_DIR}/libcrypto${LIB_FILE_EXTENSION})
 add_dependencies(OpenSSL_Crypto openssl)
 
-
-add_executable(http_server 
-    http_server/main.cpp
-    libs/http/http.h
-    libs/http/http.cpp  
-    libs/utils/string_utils.h
-    libs/utils/string_utils.cpp   
-    libs/http/server.h    
-    libs/http/server.cpp
-    http_server/config_parser.h
-    http_server/config_parser.cpp
-    http_server/handlers/static_files_handler.h
-    http_server/handlers/static_files_handler.cpp
-    http_server/handlers/default_handler.h
-    http_server/handlers/default_handler.cpp
-    http_server/static_file_server.h
-    http_server/static_file_server.cpp   
-    libs/utils/fs_utils.h
-    libs/utils/fs_utils.cpp
-    libs/http/mime_type.h
-    libs/http/mime_type.cpp
-)
-
-add_dependencies(http_server openssl asio)
-
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_compile_definitions(http_server PRIVATE  _WIN32_WINNT=0x0A00)
 endif()
 
-target_include_directories(http_server PRIVATE   
-    ${ASIO_SOURCE_DIR}/asio/include
-    ${SOURCE_DIR}/include
-    ${tomlplusplus_SOURCE_DIR}/include
+add_library(http_lib STATIC
+    src/libs/http/http.cpp
+    src/libs/utils/string_utils.cpp
+    src/libs/http/server.cpp
+    src/libs/utils/fs_utils.cpp
+    src/libs/http/mime_type.cpp
 )
 
-target_link_libraries(http_server
-    PRIVATE
-    tomlplusplus::tomlplusplus
+add_dependencies(http_lib openssl asio)
+
+target_include_directories(http_lib PUBLIC
+    include
+)
+
+target_include_directories(http_lib PRIVATE
+    ${ASIO_SOURCE_DIR}/asio/include
+    ${OPEN_SSL_SOURCE_DIR}/include
+    src/libs
+)
+
+target_link_libraries(http_lib PRIVATE
     OpenSSL_SSL
     OpenSSL_Crypto
     ${EXTRA_LINKING}
 )
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.4.0
+)
+FetchContent_MakeAvailable(tomlplusplus)
+
+add_executable(http_server 
+    src/http_server/main.cpp
+    src/http_server/config_parser.cpp
+    src/http_server/handlers/static_files_handler.cpp
+    src/http_server/handlers/default_handler.cpp
+    src/http_server/static_file_server.cpp   
+)
+
+target_link_libraries(http_server
+    PRIVATE
+    http_lib
+    tomlplusplus::tomlplusplus
+)
+endif()
+

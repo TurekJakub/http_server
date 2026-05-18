@@ -8,19 +8,6 @@
 using namespace std::filesystem;
 using namespace std;
 
-bool http_server::fsutils::is_child(const path &parent, const path &to_check) {
-  try {
-    path parent_canonical = canonical(parent);
-    path to_check_canonical = canonical(to_check);
-
-    auto [parent_it, _] = std::ranges::mismatch(parent_canonical, to_check_canonical);
-
-    return parent_it == parent_canonical.end();
-
-  } catch (filesystem_error &err) {
-    return false;
-  }
-}
 
 expected<void, string> http_server::fsutils::read_file_to_buffer(const path &file_path, vector<char> &buffer) {
   ifstream file(file_path, ios_base::binary);

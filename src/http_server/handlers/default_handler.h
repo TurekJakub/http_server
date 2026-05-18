@@ -2,8 +2,8 @@
 
 #define DEFAULT_HANDLER_H
 
-#include "../../libs/http/http.h"
-#include "../../libs/http/server.h"
+#include <http_server/http.h>
+#include <http_server/server.h>
 
 #include <string>
 

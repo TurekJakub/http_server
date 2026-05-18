@@ -2,12 +2,13 @@
 
 #define STATIC_FILE_SERVER_H
 
-#include "../libs/http/server.h"
-#include "config_parser.h"
 #include <expected>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <http_server/server.h>
+#include "config_parser.h"
 
 class StaticFileServer {
 public:

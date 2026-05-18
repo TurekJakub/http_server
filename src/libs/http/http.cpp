@@ -14,10 +14,10 @@
 #include <system_error>
 #include <utility>
 
-#include "../utils/fs_utils.h"
-#include "../utils/string_utils.h"
-#include "http.h"
-#include "mime_type.h"
+#include <utils/fs_utils.h>
+#include <utils/string_utils.h>
+#include <http_server/server.h>
+#include <http_server/mime_type.h>
 
 using namespace std;
 using namespace http_server::strutils;
@@ -83,7 +83,10 @@ expected<HttpRequest, string> HttpParser::parse_request(istream &input) {
 
   unwrap(parse_body_result)
 
-      return HttpRequest{method, headers, parse_body_result.value(), requested_url};
+  if (method == GET) {
+    return HttpRequest{method, headers, {0}, requested_url};
+  }
+  return HttpRequest{method, headers, parse_body_result.value(), requested_url};
 }
 
 expected<HttpHeaders, string> HttpParser::parse_headers(istream &input) {
@@ -168,7 +171,7 @@ expected<HttpBody, string> HttpParser::parse_body(istream &input, const HttpHead
 
 void HttpHeaders::set(string header, string value) { headers.insert(make_pair(std::move(header), std::move(value))); }
 
-void HttpHeaders::upsert(string header,string value) {headers.insert_or_assign(std::move(header), std::move(value));}
+void HttpHeaders::upsert(string header, string value) { headers.insert_or_assign(std::move(header), std::move(value)); }
 
 optional<string> HttpHeaders::get(string header) const {
   auto it = headers.find(header);
@@ -180,9 +183,7 @@ optional<string> HttpHeaders::get(string header) const {
 
 ranges::subrange<HttpHeader::const_iterator> HttpHeaders::get_all() { return ranges::subrange(headers.begin(), headers.end()); }
 
-void HttpHeaders::clear(){
-  headers.clear();
-}
+void HttpHeaders::clear() { headers.clear(); }
 
 HttpMethod str_to_method(string method_str) {
   for (auto &&method : method_map) {
@@ -193,8 +194,8 @@ HttpMethod str_to_method(string method_str) {
   return method_str;
 }
 
-bool operator==(const HttpMethod& method, const std::string& str) {
-  auto* val = std::get_if<std::string>(&method);
+bool operator==(const HttpMethod &method, const std::string &str) {
+  auto *val = std::get_if<std::string>(&method);
   if (val) {
     return *val == str;
   }
@@ -337,7 +338,7 @@ expected<void, string> serve_file(const string &file_path, HttpResponse &res) {
   return {};
 }
 
-void fill_standard_reason_response_page(HttpResponse &res,  HttpStatus status){
+void fill_standard_reason_response_page(HttpResponse &res, HttpStatus status) {
   res.headers().clear();
   res.status() = status;
   res.headers().set("Content-Type", "text/html");

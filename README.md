@@ -12,7 +12,7 @@ Then just run following command also inside `project` directory.
 
 ```shell
     cd <your_build_directory_name>
-    cmake ../src
+    cmake ..
     cmake --build .
 ```
 

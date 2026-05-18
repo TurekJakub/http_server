@@ -1,4 +1,3 @@
-#include "server.h"
 #include "asio/bind_executor.hpp"
 #include "asio/error_code.hpp"
 #include "asio/ip/tcp.hpp"
@@ -6,7 +5,6 @@
 #include "asio/streambuf.hpp"
 #include "asio/system_error.hpp"
 #include "asio/write.hpp"
-#include "http.h"
 #include <asio.hpp>
 #include <cstdio>
 #include <expected>
@@ -17,6 +15,9 @@
 #include <ostream>
 #include <print>
 #include <string>
+
+#include <http_server/http.h>
+#include <http_server/server.h>
 
 using namespace asio::ip;
 using namespace asio;
